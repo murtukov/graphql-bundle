@@ -19,6 +19,7 @@ use Symfony\Component\Config\Definition\Builder\EnumNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\ScalarNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+
 use function array_keys;
 use function is_array;
 use function is_int;
@@ -26,20 +27,18 @@ use function is_numeric;
 use function is_string;
 use function sprintf;
 
-class Configuration implements ConfigurationInterface
+final class Configuration implements ConfigurationInterface
 {
     public const NAME = 'overblog_graphql';
 
     private bool $debug;
-    private ?string $cacheDir;
 
     /**
      * @param bool $debug Whether to use the debug mode
      */
-    public function __construct(bool $debug, string $cacheDir = null)
+    public function __construct(bool $debug)
     {
-        $this->debug = (bool) $debug;
-        $this->cacheDir = $cacheDir;
+        $this->debug = $debug;
     }
 
     public function getConfigTreeBuilder(): TreeBuilder
@@ -93,7 +92,7 @@ class Configuration implements ConfigurationInterface
             ->addDefaultsIfNotSet()
             ->children()
                 ->booleanNode('enabled')->defaultTrue()->end()
-                ->scalarNode('internal_error_message')->defaultValue(ErrorHandler::DEFAULT_ERROR_MESSAGE)->end()
+                ->scalarNode('internal_error_message')->defaultValue(ErrorHandler::DEFAULT_ERROR_MESSAGE)->cannotBeEmpty()->end()
                 ->booleanNode('rethrow_internal_exceptions')->defaultFalse()->end()
                 ->booleanNode('debug')->defaultValue($this->debug)->end()
                 ->booleanNode('log')->defaultTrue()->end()
@@ -127,7 +126,6 @@ class Configuration implements ConfigurationInterface
             ->addDefaultsIfNotSet()
             ->children()
                 ->scalarNode('argument_class')->defaultValue(Argument::class)->end()
-                ->scalarNode('use_experimental_executor')->defaultFalse()->end()
                 ->scalarNode('default_field_resolver')->defaultValue(FieldResolver::class)->end()
                 ->scalarNode('class_namespace')->defaultValue('Overblog\\GraphQLBundle\\__DEFINITIONS__')->end()
                 ->scalarNode('cache_dir')->defaultNull()->end()
@@ -220,11 +218,6 @@ class Configuration implements ConfigurationInterface
                     ->scalarNode('query')->defaultNull()->end()
                     ->scalarNode('mutation')->defaultNull()->end()
                     ->scalarNode('subscription')->defaultNull()->end()
-                    ->arrayNode('resolver_maps')
-                        ->defaultValue([])
-                        ->prototype('scalar')->end()
-                        ->setDeprecated('The "%path%.%node%" configuration is deprecated since version 0.13 and will be removed in 1.0. Add the "overblog_graphql.resolver_map" tag to the services instead.')
-                    ->end()
                     ->arrayNode('types')
                         ->defaultValue([])
                         ->prototype('scalar')->end()
@@ -261,9 +254,7 @@ class Configuration implements ConfigurationInterface
                     ->prototype('array')
                         ->addDefaultsIfNotSet()
                         ->beforeNormalization()
-                            ->ifTrue(function ($v) {
-                                return isset($v['type']) && is_string($v['type']);
-                            })
+                            ->ifTrue(fn ($v) => isset($v['type']) && is_string($v['type']))
                             ->then(function ($v) {
                                 if ('yml' === $v['type']) {
                                     $v['types'] = ['yaml'];

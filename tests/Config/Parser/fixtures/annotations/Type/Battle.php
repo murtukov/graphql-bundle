@@ -10,25 +10,31 @@ use Overblog\GraphQLBundle\Tests\Config\Parser\fixtures\annotations\Input\Planet
 /**
  * @GQL\Type
  */
-class Battle
+#[GQL\Type]
+final class Battle
 {
     /**
      * @GQL\Field(type="Planet", complexity="100 + childrenComplexity")
      */
-    protected object $planet;
+    #[GQL\Field(type: 'Planet', complexity: '100 + childrenComplexity')]
+    public object $planet;
 
     /**
      * @GQL\Field(name="casualties", complexity="childrenComplexity * 5")
+     *
+     * @GQL\Arg(name="raceId", type="String!", description="A race ID")
      */
+    #[GQL\Field(name: 'casualties', complexity: 'childrenComplexity * 5')]
+    #[GQL\Arg(name: 'raceId', type: 'String!', description: 'A race ID')]
     public function getCasualties(
         int $areaId,
-        string $raceId,
-        int $dayStart = null,
-        int $dayEnd = null,
+        ?string $raceId,
+        ?int $dayStart = null,
+        ?int $dayEnd = null,
         string $nameStartingWith = '',
-        Planet $planet = null,
+        ?Planet $planet = null,
         bool $away = false,
-        float $maxDistance = null
+        ?float $maxDistance = null
     ): ?int {
         return 12;
     }

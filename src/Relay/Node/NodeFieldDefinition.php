@@ -6,8 +6,8 @@ namespace Overblog\GraphQLBundle\Relay\Node;
 
 use InvalidArgumentException;
 use Overblog\GraphQLBundle\Definition\Builder\MappingInterface;
+
 use function is_string;
-use function strpos;
 use function substr;
 
 final class NodeFieldDefinition implements MappingInterface
@@ -27,7 +27,7 @@ final class NodeFieldDefinition implements MappingInterface
             'args' => [
                 'id' => ['type' => 'ID!', 'description' => 'The ID of an object'],
             ],
-            'resolve' => "@=resolver('relay_node_field', [args, context, info, idFetcherCallback($idFetcher)])",
+            'resolve' => "@=query('relay_node_field', args, context, info, idFetcherCallback($idFetcher))",
         ];
     }
 
@@ -35,7 +35,7 @@ final class NodeFieldDefinition implements MappingInterface
     {
         $cleanIdFetcher = $idFetcher;
 
-        if (0 === strpos($idFetcher, '@=')) {
+        if (str_starts_with($idFetcher, '@=')) {
             $cleanIdFetcher = substr($idFetcher, 2);
         }
 

@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Overblog\GraphQLBundle\Tests\Functional\DisableBuiltInMapping;
 
 use GraphQL\Type\Definition\Type;
 use Overblog\GraphQLBundle\Resolver\UnresolvableException;
 use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 
-class DisableBuiltInMappingTest extends TestCase
+final class DisableBuiltInMappingTest extends TestCase
 {
     protected function setUp(): void
     {

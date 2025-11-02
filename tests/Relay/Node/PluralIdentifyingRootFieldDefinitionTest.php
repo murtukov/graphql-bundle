@@ -8,7 +8,7 @@ use InvalidArgumentException;
 use Overblog\GraphQLBundle\Relay\Node\PluralIdentifyingRootFieldDefinition;
 use PHPUnit\Framework\TestCase;
 
-class PluralIdentifyingRootFieldDefinitionTest extends TestCase
+final class PluralIdentifyingRootFieldDefinitionTest extends TestCase
 {
     /** @var PluralIdentifyingRootFieldDefinition */
     private $definition;
@@ -69,6 +69,7 @@ class PluralIdentifyingRootFieldDefinitionTest extends TestCase
 
     /**
      * @param mixed $resolveSingleInput
+     *
      * @dataProvider validConfigProvider
      */
     public function testValidConfig($resolveSingleInput, string $expectedResolveSingleInputCallbackArg): void
@@ -83,7 +84,7 @@ class PluralIdentifyingRootFieldDefinitionTest extends TestCase
         $expected = [
             'type' => '[User]',
             'args' => ['username' => ['type' => '[UserInput!]!']],
-            'resolve' => '@=resolver(\'relay_plural_identifying_field\', [args[\'username\'], context, info, resolveSingleInputCallback('.$expectedResolveSingleInputCallbackArg.')])',
+            'resolve' => '@=query(\'relay_plural_identifying_field\', args.username, context, info, resolveSingleInputCallback('.$expectedResolveSingleInputCallbackArg.'))',
         ];
 
         $this->assertSame($expected, $this->definition->toMappingDefinition($config));

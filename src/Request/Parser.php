@@ -6,14 +6,16 @@ namespace Overblog\GraphQLBundle\Request;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+
 use function array_filter;
 use function explode;
 use function is_string;
 use function json_decode;
 use function json_last_error;
+
 use const JSON_ERROR_NONE;
 
-class Parser implements ParserInterface
+final class Parser implements ParserInterface
 {
     use UploadParserTrait;
 
@@ -40,7 +42,7 @@ class Parser implements ParserInterface
                 $parsedBody = [static::PARAM_QUERY => $body];
                 break;
 
-            // JSON object
+                // JSON object
             case static::CONTENT_TYPE_JSON:
                 if (empty($body)) {
                     if (Request::METHOD_GET === $method) {
@@ -57,7 +59,7 @@ class Parser implements ParserInterface
                 }
                 break;
 
-            // URL-encoded query-string
+                // URL-encoded query-string
             case static::CONTENT_TYPE_FORM:
                 $parsedBody = $request->request->all();
                 break;
@@ -86,13 +88,14 @@ class Parser implements ParserInterface
                 static::PARAM_OPERATION_NAME => null,
             ];
 
-        // Keep a reference to the query-string
-        $qs = $request->query;
+        // Use all query parameters, since starting from Symfony 6 there will be an exception accessing array parameters
+        // via request->query->get(key), and another exception accessing non-array parameter via request->query->all(key)
+        $queryParameters = $request->query->all();
 
         // Override request using query-string parameters
-        $query = $qs->has(static::PARAM_QUERY) ? $qs->get(static::PARAM_QUERY) : $data[static::PARAM_QUERY];
-        $variables = $qs->has(static::PARAM_VARIABLES) ? $qs->get(static::PARAM_VARIABLES) : $data[static::PARAM_VARIABLES];
-        $operationName = $qs->has(static::PARAM_OPERATION_NAME) ? $qs->get(static::PARAM_OPERATION_NAME) : $data[static::PARAM_OPERATION_NAME];
+        $query = $queryParameters[static::PARAM_QUERY] ?? $data[static::PARAM_QUERY];
+        $variables = $queryParameters[static::PARAM_VARIABLES] ?? $data[static::PARAM_VARIABLES];
+        $operationName = $queryParameters[static::PARAM_OPERATION_NAME] ?? $data[static::PARAM_OPERATION_NAME];
 
         // `query` parameter is mandatory.
         if (empty($query)) {

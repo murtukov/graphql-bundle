@@ -7,7 +7,7 @@ namespace Overblog\GraphQLBundle\CacheWarmer;
 use Overblog\GraphQLBundle\Generator\TypeGenerator;
 use Symfony\Component\HttpKernel\CacheWarmer\CacheWarmerInterface;
 
-class CompileCacheWarmer implements CacheWarmerInterface
+final class CompileCacheWarmer implements CacheWarmerInterface
 {
     private TypeGenerator $typeGenerator;
     private bool $compiled;
@@ -21,30 +21,28 @@ class CompileCacheWarmer implements CacheWarmerInterface
     /**
      * {@inheritdoc}
      */
-    public function isOptional()
+    public function isOptional(): bool
     {
         return !$this->compiled;
     }
 
     /**
-     * {@inheritdoc}
-     *
-     * @param string $cacheDir
-     *
      * @return string[]
      */
-    public function warmUp($cacheDir)
+    public function warmUp(string $cacheDir, ?string $buildDir = null): array
     {
         if ($this->compiled) {
-            // use warm up cache dir if type generator cache dir not already explicitly declare
-            $baseCacheDir = $this->typeGenerator->getBaseCacheDir();
-            if (null === $this->typeGenerator->getCacheDir(false)) {
-                $this->typeGenerator->setBaseCacheDir($cacheDir);
+            // use warm up cache dir if type generator cache dir not already explicitly declared
+            $cacheBaseDir = $this->typeGenerator->getCacheBaseDir();
+
+            if (null === $this->typeGenerator->getCacheDir()) {
+                $this->typeGenerator->setCacheBaseDir($cacheDir);
             }
+
             $this->typeGenerator->compile(TypeGenerator::MODE_WRITE | TypeGenerator::MODE_OVERRIDE);
 
-            if (null !== $baseCacheDir) {
-                $this->typeGenerator->setBaseCacheDir($baseCacheDir);
+            if (null !== $cacheBaseDir) {
+                $this->typeGenerator->setCacheBaseDir($cacheBaseDir);
             }
         }
 

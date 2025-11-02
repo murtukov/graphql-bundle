@@ -11,24 +11,23 @@ use Overblog\GraphQLBundle\Tests\Functional\TestCase;
  *
  * @see https://github.com/graphql/graphql-relay-js/blob/master/src/node/__tests__/global.js
  */
-class GlobalTest extends TestCase
+final class GlobalTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
         static::bootKernel(['test_case' => 'global']);
     }
 
     public function testGlobalIdFields(): void
     {
         $query = <<<'EOF'
-{
-  allObjects {
-    id
-  }
-}
-EOF;
+            {
+              allObjects {
+                id
+              }
+            }
+            EOF;
 
         $expectedData = [
             'allObjects' => [
@@ -59,28 +58,29 @@ EOF;
     public function testReFetchesTheIds(): void
     {
         $query = <<<'EOF'
-{
-      user: node(id: "VXNlcjox") {
-        id
-        ... on User {
-          name
-        }
-      },
-      photo: node(id: "UGhvdG86MQ==") {
-        id
-        ... on Photo {
-          width
-        }
-      },
-      post: node(id: "UG9zdDox") {
-        id
-        ... on Post {
-          text
-          status
-        }
-      }
-    }
-EOF;
+            {
+              user: node(id: "VXNlcjox") {
+                id
+                ... on User {
+                  name
+                }
+              },
+              photo: node(id: "UGhvdG86MQ==") {
+                id
+                ... on Photo {
+                  width
+                }
+              },
+              post: node(id: "UG9zdDox") {
+                id
+                ... on Post {
+                  text
+                  status
+                }
+              }
+            }
+            EOF;
+
         $expectedData = [
             'user' => [
                 'id' => 'VXNlcjox',

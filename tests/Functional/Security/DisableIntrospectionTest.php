@@ -6,18 +6,18 @@ namespace Overblog\GraphQLBundle\Tests\Functional\Security;
 
 use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 
-class DisableIntrospectionTest extends TestCase
+final class DisableIntrospectionTest extends TestCase
 {
     private string $introspectionQuery = <<<'EOF'
-    query {
-      __schema {
-        types {
-          name
-          description
+        query {
+          __schema {
+            types {
+              name
+              description
+            }
+          }
         }
-      }
-    }
-    EOF;
+        EOF;
 
     public function testIntrospectionDisabled(): void
     {
@@ -25,7 +25,6 @@ class DisableIntrospectionTest extends TestCase
             'errors' => [
                 [
                     'message' => 'GraphQL introspection is not allowed, but the query contained __schema or __type',
-                    'extensions' => ['category' => 'graphql'],
                     'locations' => [
                         [
                             'line' => 2,

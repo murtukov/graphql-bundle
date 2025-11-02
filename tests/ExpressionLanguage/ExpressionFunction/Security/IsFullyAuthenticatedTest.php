@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Tests\ExpressionLanguage\ExpressionFunction\Security;
 
-use Overblog\GraphQLBundle\Definition\GlobalVariables;
 use Overblog\GraphQLBundle\ExpressionLanguage\ExpressionFunction\Security\IsFullyAuthenticated;
 use Overblog\GraphQLBundle\Generator\TypeGenerator;
 use Overblog\GraphQLBundle\Tests\ExpressionLanguage\TestCase;
 
-class IsFullyAuthenticatedTest extends TestCase
+final class IsFullyAuthenticatedTest extends TestCase
 {
     protected function getFunctions()
     {
@@ -22,11 +21,11 @@ class IsFullyAuthenticatedTest extends TestCase
             'IS_AUTHENTICATED_FULLY',
             $this->any()
         );
-        $globalVars = new GlobalVariables(['security' => $security]);
+        $gqlServices = $this->createGraphQLServices(['security' => $security]);
 
         $isFullyAuthenticated = $this->expressionLanguage->evaluate(
             'isFullyAuthenticated()',
-            [TypeGenerator::GLOBAL_VARS => $globalVars]
+            [TypeGenerator::GRAPHQL_SERVICES => $gqlServices]
         );
         $this->assertTrue($isFullyAuthenticated);
     }

@@ -12,7 +12,7 @@ use Overblog\GraphQLBundle\CacheWarmer\CompileCacheWarmer;
 use Overblog\GraphQLBundle\Config\Processor\BuilderProcessor;
 use Overblog\GraphQLBundle\Definition\Builder\SchemaBuilder;
 use Overblog\GraphQLBundle\Definition\Resolver\MutationInterface;
-use Overblog\GraphQLBundle\Definition\Resolver\ResolverInterface;
+use Overblog\GraphQLBundle\Definition\Resolver\QueryInterface;
 use Overblog\GraphQLBundle\Error\ErrorHandler;
 use Overblog\GraphQLBundle\Error\ExceptionConverter;
 use Overblog\GraphQLBundle\Error\ExceptionConverterInterface;
@@ -23,21 +23,18 @@ use Overblog\GraphQLBundle\EventListener\DebugListener;
 use Overblog\GraphQLBundle\EventListener\ErrorHandlerListener;
 use Overblog\GraphQLBundle\EventListener\ErrorLoggerListener;
 use Overblog\GraphQLBundle\Request\Executor;
-use Overblog\GraphQLBundle\Validator\ValidatorFactory;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpKernel\DependencyInjection\Extension;
-use Symfony\Component\Validator\Validation;
-use function array_fill_keys;
-use function class_exists;
+
 use function realpath;
 use function sprintf;
 
-class OverblogGraphQLExtension extends Extension
+final class OverblogGraphQLExtension extends Extension
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
@@ -59,22 +56,22 @@ class OverblogGraphQLExtension extends Extension
         $this->setCompilerCacheWarmer($config, $container);
         $this->registerForAutoconfiguration($container);
         $this->setDefaultFieldResolver($config, $container);
-        $this->registerValidatorFactory($container);
 
+        $container->setParameter($this->getAlias().'.schemas', array_keys($config['definitions']['schema']));
         $container->setParameter($this->getAlias().'.config', $config);
         $container->setParameter($this->getAlias().'.resources_dir', realpath(__DIR__.'/../Resources'));
     }
 
-    public function getAlias()
+    public function getAlias(): string
     {
         return Configuration::NAME;
     }
 
-    public function getConfiguration(array $config, ContainerBuilder $container)
+    public function getConfiguration(array $config, ContainerBuilder $container): Configuration
     {
         return new Configuration(
-            $container->getParameter('kernel.debug'),
-            $container->hasParameter('kernel.cache_dir') ? $container->getParameter('kernel.cache_dir') : null
+            // @phpstan-ignore-next-line
+            $container->getParameter('kernel.debug')
         );
     }
 
@@ -97,29 +94,11 @@ class OverblogGraphQLExtension extends Extension
         $container->registerForAutoconfiguration(MutationInterface::class)
             ->addTag('overblog_graphql.mutation');
 
-        $container->registerForAutoconfiguration(ResolverInterface::class)
-            ->addTag('overblog_graphql.resolver');
+        $container->registerForAutoconfiguration(QueryInterface::class)
+            ->addTag('overblog_graphql.query');
 
         $container->registerForAutoconfiguration(Type::class)
             ->addTag('overblog_graphql.type');
-    }
-
-    private function registerValidatorFactory(ContainerBuilder $container): void
-    {
-        if (class_exists(Validation::class)) {
-            $container->register(ValidatorFactory::class)
-                ->setArguments([
-                    new Reference('validator.validator_factory'),
-                    new Reference('translator.default', $container::NULL_ON_INVALID_REFERENCE),
-                ])
-                ->addTag(
-                    'overblog_graphql.global_variable',
-                    [
-                        'alias' => 'validatorFactory',
-                        'public' => false,
-                    ]
-                );
-        }
     }
 
     private function setDefaultFieldResolver(array $config, ContainerBuilder $container): void
@@ -160,7 +139,6 @@ class OverblogGraphQLExtension extends Extension
         $container->setParameter($this->getAlias().'.cache_dir', $config['definitions']['cache_dir']);
         $container->setParameter($this->getAlias().'.cache_dir_permissions', $config['definitions']['cache_dir_permissions']);
         $container->setParameter($this->getAlias().'.argument_class', $config['definitions']['argument_class']);
-        $container->setParameter($this->getAlias().'.use_experimental_executor', $config['definitions']['use_experimental_executor']);
     }
 
     private function setProfilerParameters(array $config, ContainerBuilder $container): void
@@ -220,7 +198,8 @@ class OverblogGraphQLExtension extends Extension
 
         $container->register(ErrorHandler::class)
             ->setArgument(0, new Reference(EventDispatcherInterface::class))
-            ->setArgument(1, new Reference(ExceptionConverterInterface::class));
+            ->setArgument(1, new Reference(ExceptionConverterInterface::class))
+            ->setArgument(2, $config['errors_handler']['internal_error_message']);
 
         $container->register(ErrorHandlerListener::class)
             ->setArgument(0, new Reference(ErrorHandler::class))
@@ -254,7 +233,6 @@ class OverblogGraphQLExtension extends Extension
         }
 
         $executorDefinition = $container->getDefinition(Executor::class);
-        $resolverMapsBySchema = [];
 
         foreach ($config['definitions']['schema'] as $schemaName => $schemaConfig) {
             // builder
@@ -274,11 +252,7 @@ class OverblogGraphQLExtension extends Extension
             $definition->setFactory([new Reference($schemaBuilderID), 'call']);
 
             $executorDefinition->addMethodCall('addSchemaBuilder', [$schemaName, new Reference($schemaBuilderID)]);
-
-            $resolverMapsBySchema[$schemaName] = array_fill_keys($schemaConfig['resolver_maps'], 0);
         }
-
-        $container->setParameter(sprintf('%s.resolver_maps', $this->getAlias()), $resolverMapsBySchema);
     }
 
     private function setServicesAliases(array $config, ContainerBuilder $container): void
@@ -294,7 +268,7 @@ class OverblogGraphQLExtension extends Extension
     /**
      * Returns a list of custom exceptions mapped to error/warning classes.
      *
-     * @param array<string, string[]> $exceptionConfig
+     * @param array<string, array<string>> $exceptionConfig
      *
      * @return array<string, string> Custom exception map, [exception => UserError/UserWarning]
      */

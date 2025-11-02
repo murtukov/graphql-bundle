@@ -4,21 +4,34 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Relay\Connection\Output;
 
+use AllowDynamicProperties;
+use GraphQL\Executor\Promise\Promise;
 use Overblog\GraphQLBundle\Relay\Connection\ConnectionInterface;
 use Overblog\GraphQLBundle\Relay\Connection\EdgeInterface;
 use Overblog\GraphQLBundle\Relay\Connection\PageInfoInterface;
 
+/**
+ * @phpstan-template T
+ *
+ * @phpstan-implements ConnectionInterface<T>
+ */
+#[AllowDynamicProperties]
 class Connection implements ConnectionInterface
 {
     use DeprecatedPropertyPublicAccessTrait;
 
-    /** @var EdgeInterface[] */
-    protected array $edges;
+    /** @phpstan-var iterable<EdgeInterface<T>> */
+    protected iterable $edges;
 
     protected ?PageInfoInterface $pageInfo;
-    protected ?int $totalCount = null;
 
-    public function __construct(array $edges = [], PageInfoInterface $pageInfo = null)
+    /** @var int|Promise|null Total count or promise that returns the total count */
+    protected $totalCount;
+
+    /**
+     * @param EdgeInterface<T>[] $edges
+     */
+    public function __construct(array $edges = [], ?PageInfoInterface $pageInfo = null)
     {
         $this->edges = $edges;
         $this->pageInfo = $pageInfo;
@@ -27,7 +40,7 @@ class Connection implements ConnectionInterface
     /**
      * {@inheritdoc}
      */
-    public function getEdges(): array
+    public function getEdges(): iterable
     {
         return $this->edges;
     }
@@ -43,7 +56,7 @@ class Connection implements ConnectionInterface
     /**
      * {@inheritdoc}
      */
-    public function getPageInfo(): ? PageInfoInterface
+    public function getPageInfo(): ?PageInfoInterface
     {
         return $this->pageInfo;
     }
@@ -59,7 +72,7 @@ class Connection implements ConnectionInterface
     /**
      * {@inheritdoc}
      */
-    public function getTotalCount(): ?int
+    public function getTotalCount()
     {
         return $this->totalCount;
     }
@@ -67,7 +80,7 @@ class Connection implements ConnectionInterface
     /**
      * {@inheritdoc}
      */
-    public function setTotalCount(int $totalCount): void
+    public function setTotalCount($totalCount): void
     {
         $this->totalCount = $totalCount;
     }

@@ -1,6 +1,10 @@
 imports:
     - { resource: ../config.yml }
 
+framework:
+    validation:
+        enabled: true
+
 overblog_graphql:
     definitions:
         config_validation: false
@@ -18,20 +22,17 @@ services:
         class: Overblog\GraphQLBundle\Validator\Constraints\ExpressionValidator
         arguments:
             - '@Overblog\GraphQLBundle\ExpressionLanguage\ExpressionLanguage'
-            - '@Overblog\GraphQLBundle\Definition\GlobalVariables'
+            - '@Overblog\GraphQLBundle\Definition\GraphQLServices'
         tags:
             - name: validator.constraint_validator
               alias: validator.expression
 
     Overblog\GraphQLBundle\Tests\Functional\Validator\ServiceValidator:
-
-    service_validator:
-        alias: Overblog\GraphQLBundle\Tests\Functional\Validator\ServiceValidator
-        public: true
+        tags:
+            - { name: overblog_graphql.service, alias: service_validator }
 
     Overblog\GraphQLBundle\Tests\Functional\App\Mutation\InputValidatorMutation:
         tags:
             - { name: "overblog_graphql.mutation", alias: "mutation_mock", method: "mutationMock" }
             - { name: "overblog_graphql.mutation", alias: "mutation_errors", method: "mutationErrors" }
             - { name: "overblog_graphql.mutation", alias: "no_validation", method: "noValidation" }
-

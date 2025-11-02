@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Overblog\GraphQLBundle\Tests\DependencyInjection\Builder;
 
 use Overblog\GraphQLBundle\Definition\Builder\MappingInterface;
+
 use function array_keys;
 use function sprintf;
 
@@ -32,7 +33,7 @@ final class MutationField implements MappingInterface
 
         $field = [
             'type' => $payloadTypeName.'!',
-            'resolve' => sprintf('@=mutation("%s", [args["input"]])', $resolver),
+            'resolve' => sprintf('@=mutation("%s", args.input)', $resolver),
             'args' => [
                 'input' => $inputTypeName.'!',
             ],
@@ -50,7 +51,7 @@ final class MutationField implements MappingInterface
                 'config' => [
                     'types' => [$payloadSuccessTypeName, $payloadFailureTypeName],
                     'resolveType' => sprintf(
-                        '@=resolver("PayloadTypeResolver", [value, "%s", "%s"])',
+                        '@=query("PayloadTypeResolver", value, "%s", "%s")',
                         $payloadSuccessTypeName,
                         $payloadFailureTypeName
                     ),

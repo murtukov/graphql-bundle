@@ -8,16 +8,19 @@ use GraphQL\Type\Introspection;
 use GraphQL\Utils\SchemaPrinter;
 use InvalidArgumentException;
 use Overblog\GraphQLBundle\Request\Executor as RequestExecutor;
+use Overblog\GraphQLBundle\Resolver\TypeResolver;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+
 use function file_put_contents;
 use function json_encode;
 use function realpath;
 use function sprintf;
 use function strtolower;
+
 use const JSON_PRETTY_PRINT;
 
 final class GraphQLDumpSchemaCommand extends Command
@@ -25,11 +28,14 @@ final class GraphQLDumpSchemaCommand extends Command
     private RequestExecutor $requestExecutor;
     private string $baseExportPath;
 
-    public function __construct(string $baseExportPath, RequestExecutor $requestExecutor)
+    public function __construct(string $baseExportPath, RequestExecutor $requestExecutor, TypeResolver $typeResolver)
     {
         parent::__construct();
         $this->baseExportPath = $baseExportPath;
         $this->requestExecutor = $requestExecutor;
+
+        // Disable exception when an unresolvable types is encountered. Schema dump will try to access the Query, Mutation and Subscription types and will fail if they are not defined.
+        $typeResolver->setIgnoreUnresolvableException(true);
     }
 
     public function getRequestExecutor(): RequestExecutor
@@ -118,7 +124,7 @@ final class GraphQLDumpSchemaCommand extends Command
                     ->execute($schemaName, $request)
                     ->toArray();
 
-                $content = json_encode($modern ? $result : $result['data'], JSON_PRETTY_PRINT);
+                $content = json_encode($modern ? $result : ($result['data'] ?? null), JSON_PRETTY_PRINT);
                 break;
 
             case 'graphql':

@@ -8,36 +8,37 @@ use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
 use function json_decode;
 use function json_encode;
 
-class GraphControllerTest extends TestCase
+final class GraphControllerTest extends TestCase
 {
     private string $friendsQuery = <<<'EOF'
-    query FriendsQuery {
-      user {
-        friends(first: 2) {
-          totalCount
-          edges {
-            friendshipTime
-            node {
-              name
+        query FriendsQuery {
+          user {
+            friends(first: 2) {
+              totalCount
+              edges {
+                friendshipTime
+                node {
+                  name
+                }
+              }
             }
           }
         }
-      }
-    }
-    EOF;
+        EOF;
 
     private string $friendsTotalCountQuery = <<<'EOF'
-    query FriendsTotalCountQuery {
-      user {
-        friends {
-          totalCount
+        query FriendsTotalCountQuery {
+          user {
+            friends {
+              totalCount
+            }
+          }
         }
-      }
-    }
-    EOF;
+        EOF;
 
     private array $expectedData = [
         'user' => [
@@ -127,20 +128,20 @@ class GraphControllerTest extends TestCase
         $this->disableCatchExceptions($client);
 
         $query = <<<'EOF'
-query FriendsQuery($firstFriends: Int) {
-  user {
-    friends(first: $firstFriends) {
-      totalCount
-      edges {
-        friendshipTime
-        node {
-          name
-        }
-      }
-    }
-  }
-}
-EOF;
+            query FriendsQuery($firstFriends: Int) {
+              user {
+                friends(first: $firstFriends) {
+                  totalCount
+                  edges {
+                    friendshipTime
+                    node {
+                      name
+                    }
+                  }
+                }
+              }
+            }
+            EOF;
 
         $content = json_encode(['query' => $query, 'variables' => '{"firstFriends": 2}']) ?: null;
         $client->request('GET', '/', [], [], ['CONTENT_TYPE' => 'application/json'], $content);
@@ -155,10 +156,10 @@ EOF;
         $this->disableCatchExceptions($client);
 
         $query = <<<'EOF'
-query {
-  user
-}
-EOF;
+            query {
+              user
+            }
+            EOF;
 
         $client->request('GET', '/', ['query' => $query, 'variables' => '"firstFriends": 2}']);
     }
@@ -166,15 +167,15 @@ EOF;
     public function testMultipleEndpointActionWithUnknownSchemaName(): void
     {
         $this->expectException(NotFoundHttpException::class);
-        $this->expectExceptionMessage('Could not found "fake" schema.');
+        $this->expectExceptionMessage('Could not find "fake" schema.');
         $client = static::createClient(['test_case' => 'connection']);
         $this->disableCatchExceptions($client);
 
         $query = <<<'EOF'
-query {
-  user
-}
-EOF;
+            query {
+              user
+            }
+            EOF;
 
         $client->request('GET', '/graphql/fake', ['query' => $query]);
     }

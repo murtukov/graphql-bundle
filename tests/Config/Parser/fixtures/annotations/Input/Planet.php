@@ -4,54 +4,69 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Tests\Config\Parser\fixtures\annotations\Input;
 
-use Doctrine\ORM\Mapping as ORM;
 use Overblog\GraphQLBundle\Annotation as GQL;
 
 /**
  * @GQL\Input
+ *
  * @GQL\Description("Planet Input type description")
  */
-class Planet
+#[GQL\Input]
+#[GQL\Description('Planet Input type description')]
+final class Planet
 {
     /**
      * @GQL\Field(resolve="...")
      */
-    protected string $skipField;
+    #[GQL\Field(resolve: '...')]
+    public string $skipField;
 
     /**
      * @GQL\Field(type="String!")
      */
-    protected string $name;
+    #[GQL\Field(type: 'String!')]
+    public string $name;
 
     /**
      * @GQL\Field(type="Int!")
      */
-    protected string $population;
+    #[GQL\Field(type: 'Int!')]
+    public string $population;
 
     /**
      * @GQL\Field
      */
-    protected string $description;
+    #[GQL\Field]
+    public string $description;
 
     /**
      * @GQL\Field
-     * @ORM\Column(type="integer", nullable=true)
      */
+    #[GQL\Field]
     // @phpstan-ignore-next-line
-    protected $diameter;
+    public ?int $diameter;
 
     /**
      * @GQL\Field
-     * @ORM\Column(type="boolean")
      */
-    protected int $variable;
+    #[GQL\Field]
+    public int $variable;
 
     // @phpstan-ignore-next-line
-    protected $dummy;
+    public $dummy;
 
     /**
-     * @GQL\Field
-     * @ORM\Column(type="text[]")
+     * @GQL\Field(type="[String]!")
      */
-    protected array $tags;
+    #[GQL\Field(type: '[String]!')]
+    public array $tags;
+
+    /**
+     * @GQL\Field(type="Boolean!")
+     *
+     * @GQL\Deprecated("No more alien invasions on planets")
+     */
+    #[GQL\Field(type: 'Boolean!')]
+    #[GQL\Deprecated('No more alien invasions on planets')]
+    public string $alienInvasion;
 }

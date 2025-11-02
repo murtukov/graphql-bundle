@@ -8,7 +8,7 @@ use InvalidArgumentException;
 use Overblog\GraphQLBundle\Relay\Node\NodeFieldDefinition;
 use PHPUnit\Framework\TestCase;
 
-class NodeFieldDefinitionTest extends TestCase
+final class NodeFieldDefinitionTest extends TestCase
 {
     private NodeFieldDefinition $definition;
 
@@ -46,7 +46,7 @@ class NodeFieldDefinitionTest extends TestCase
             'description' => 'Fetches an object given its ID',
             'type' => $nodeInterfaceType,
             'args' => ['id' => ['type' => 'ID!', 'description' => 'The ID of an object']],
-            'resolve' => '@=resolver(\'relay_node_field\', [args, context, info, idFetcherCallback('.$idFetcherCallbackArg.')])',
+            'resolve' => '@=query(\'relay_node_field\', args, context, info, idFetcherCallback('.$idFetcherCallbackArg.'))',
         ];
 
         $this->assertSame($expected, $this->definition->toMappingDefinition($config));

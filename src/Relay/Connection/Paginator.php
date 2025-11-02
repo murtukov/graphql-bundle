@@ -7,6 +7,7 @@ namespace Overblog\GraphQLBundle\Relay\Connection;
 use GraphQL\Executor\Promise\Promise;
 use Overblog\GraphQLBundle\Definition\ArgumentInterface;
 use Overblog\GraphQLBundle\Relay\Connection\Output\Connection;
+
 use function call_user_func;
 use function call_user_func_array;
 use function count;
@@ -14,7 +15,7 @@ use function is_callable;
 use function is_numeric;
 use function max;
 
-class Paginator
+final class Paginator
 {
     public const MODE_REGULAR = false;
     public const MODE_PROMISE = true;
@@ -26,7 +27,7 @@ class Paginator
     /** @var callable */
     private $fetcher;
 
-    public function __construct(callable $fetcher, bool $promise = self::MODE_REGULAR, ConnectionBuilder $connectionBuilder = null)
+    public function __construct(callable $fetcher, bool $promise = self::MODE_REGULAR, ?ConnectionBuilder $connectionBuilder = null)
     {
         $this->fetcher = $fetcher;
         $this->promise = $promise;
@@ -68,9 +69,7 @@ class Paginator
         if (!is_numeric($this->connectionBuilder->cursorToOffset($after)) || !$after) {
             $entities = call_user_func($this->fetcher, $offset, $limit ? $limit + 1 : $limit);
 
-            return $this->handleEntities($entities, function ($entities) use ($args) {
-                return $this->connectionBuilder->connectionFromArray($entities, $args);
-            });
+            return $this->handleEntities($entities, fn ($entities) => $this->connectionBuilder->connectionFromArray($entities, $args));
         } else {
             $entities = call_user_func($this->fetcher, $offset, $limit ? $limit + 2 : $limit);
 

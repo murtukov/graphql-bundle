@@ -7,13 +7,25 @@ namespace Overblog\GraphQLBundle\Tests\Config\Parser\fixtures\annotations\Type;
 use Overblog\GraphQLBundle\Annotation as GQL;
 
 /**
- * @GQL\Type()
+ * @GQL\Type
+ *
  * @GQL\Description("The Cat type")
  */
-class Cat extends Animal
+#[GQL\Type]
+#[GQL\Description('The Cat type')]
+final class Cat extends Animal
 {
     /**
      * @GQL\Field(type="Int!")
      */
+    #[GQL\Field(type: 'Int!')]
     protected int $lives;
+
+    /**
+     * @GQL\Field
+     *
+     * @var string[]
+     */
+    #[GQL\Field]
+    protected array $toys;
 }

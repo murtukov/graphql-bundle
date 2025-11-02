@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Overblog\GraphQLBundle\Config;
 
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+
 use function is_string;
 
-class InputObjectTypeDefinition extends TypeDefinition
+final class InputObjectTypeDefinition extends TypeDefinition
 {
     public function getDefinition(): ArrayNodeDefinition
     {
@@ -31,6 +32,7 @@ class InputObjectTypeDefinition extends TypeDefinition
                         ->append($this->descriptionSection())
                         ->append($this->defaultValueSection())
                         ->append($this->validationSection(self::VALIDATION_LEVEL_PROPERTY))
+                        ->append($this->deprecationReasonSection())
                     ->end()
                     ->isRequired()
                     ->requiresAtLeastOneElement()

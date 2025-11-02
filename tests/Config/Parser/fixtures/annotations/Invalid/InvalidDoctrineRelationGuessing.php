@@ -10,11 +10,14 @@ use Overblog\GraphQLBundle\Annotation as GQL;
 /**
  * @GQL\Type
  */
-class InvalidDoctrineRelationGuessing
+#[GQL\Type]
+final class InvalidDoctrineRelationGuessing
 {
     /**
      * @ORM\OneToOne(targetEntity="MissingType")
+     *
      * @GQL\Field
      */
-    protected object $myRelation;
+    #[GQL\Field]
+    public object $myRelation;
 }

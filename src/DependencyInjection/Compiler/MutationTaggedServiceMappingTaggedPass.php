@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\DependencyInjection\Compiler;
 
-class MutationTaggedServiceMappingTaggedPass extends ResolverTaggedServiceMappingPass
+final class MutationTaggedServiceMappingTaggedPass extends QueryTaggedServiceMappingPass
 {
     protected function getTagName(): string
     {

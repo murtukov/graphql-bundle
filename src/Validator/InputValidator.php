@@ -4,101 +4,86 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Validator;
 
+use Closure;
 use GraphQL\Type\Definition\InputObjectType;
+use GraphQL\Type\Definition\ListOfType;
+use GraphQL\Type\Definition\NonNull;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\ResolveInfo;
-use Overblog\GraphQLBundle\Definition\ArgumentInterface;
+use GraphQL\Type\Definition\Type;
+use Overblog\GraphQLBundle\Definition\ResolverArgs;
+use Overblog\GraphQLBundle\Definition\Type\GeneratedTypeInterface;
 use Overblog\GraphQLBundle\Validator\Exception\ArgumentsValidationException;
 use Overblog\GraphQLBundle\Validator\Mapping\MetadataFactory;
 use Overblog\GraphQLBundle\Validator\Mapping\ObjectMetadata;
-use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints\GroupSequence;
 use Symfony\Component\Validator\Constraints\Valid;
+use Symfony\Component\Validator\ConstraintValidatorFactoryInterface;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Mapping\ClassMetadataInterface;
 use Symfony\Component\Validator\Mapping\GetterMetadata;
 use Symfony\Component\Validator\Mapping\PropertyMetadata;
+use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
 use function in_array;
 
-class InputValidator
+final class InputValidator
 {
     private const TYPE_PROPERTY = 'property';
     private const TYPE_GETTER = 'getter';
+    public const CASCADE = 'cascade';
 
-    private array $resolverArgs;
-    private array $propertiesMapping;
-    private array $classMapping;
-    private ValidatorInterface $validator;
+    private ResolverArgs $resolverArgs;
+    private ValidatorInterface $defaultValidator;
     private MetadataFactory $metadataFactory;
     private ResolveInfo $info;
-    private ValidatorFactory $validatorFactory;
+    private ConstraintValidatorFactoryInterface $constraintValidatorFactory;
+    private ?TranslatorInterface $defaultTranslator;
 
     /** @var ClassMetadataInterface[] */
     private array $cachedMetadata = [];
 
-    /**
-     * InputValidator constructor.
-     */
     public function __construct(
-        array $resolverArgs,
-        ?ValidatorInterface $validator,
-        ValidatorFactory $factory,
-        array $propertiesMapping = [],
-        array $classMapping = []
+        ResolverArgs $resolverArgs,
+        ValidatorInterface $validator,
+        ConstraintValidatorFactoryInterface $constraintValidatorFactory,
+        ?TranslatorInterface $translator
     ) {
-        if (null === $validator) {
-            throw new ServiceNotFoundException(
-                "The 'validator' service is not found. To use the 'InputValidator' you need to install the
-                Symfony Validator Component first. See: 'https://symfony.com/doc/current/validation.html'"
-            );
-        }
-
-        $this->resolverArgs = $this->mapResolverArgs(...$resolverArgs);
-        $this->info = $this->resolverArgs['info'];
-        $this->propertiesMapping = $propertiesMapping;
-        $this->classMapping = $classMapping;
-        $this->validator = $validator;
-        $this->validatorFactory = $factory;
+        $this->resolverArgs = $resolverArgs;
+        $this->info = $this->resolverArgs->info;
+        $this->defaultValidator = $validator;
+        $this->constraintValidatorFactory = $constraintValidatorFactory;
+        $this->defaultTranslator = $translator;
         $this->metadataFactory = new MetadataFactory();
     }
 
     /**
-     * Converts a numeric array of resolver args to an associative one.
-     *
-     * @param mixed $value
-     * @param mixed $context
-     */
-    private function mapResolverArgs($value, ArgumentInterface $args, $context, ResolveInfo $info): array
-    {
-        return [
-            'value' => $value,
-            'args' => $args,
-            'context' => $context,
-            'info' => $info,
-        ];
-    }
-
-    /**
-     * @param string|array|null $groups
-     *
      * @throws ArgumentsValidationException
      */
-    public function validate($groups = null, bool $throw = true): ?ConstraintViolationListInterface
+    public function validate(string|array|null $groups = null, bool $throw = true): ?ConstraintViolationListInterface
     {
-        $rootObject = new ValidationNode($this->info->parentType, $this->info->fieldName, null, $this->resolverArgs);
-
-        $this->buildValidationTree(
-            $rootObject,
-            $this->propertiesMapping,
-            $this->classMapping,
-            $this->resolverArgs['args']->getArrayCopy()
+        $rootNode = new ValidationNode(
+            $this->info->parentType,
+            $this->info->fieldName,
+            null,
+            $this->resolverArgs
         );
 
-        $validator = $this->validatorFactory->createValidator($this->metadataFactory);
+        $classMapping = $this->mergeClassValidation();
 
-        $errors = $validator->validate($rootObject, null, $groups);
+        $this->buildValidationTree(
+            $rootNode,
+            $this->info->fieldDefinition->config['args'] ?? [],
+            $classMapping,
+            $this->resolverArgs->args->getArrayCopy()
+        );
+
+        $validator = $this->createValidator($this->metadataFactory);
+
+        $errors = $validator->validate($rootNode, null, $groups);
 
         if ($throw && $errors->count() > 0) {
             throw new ArgumentsValidationException($errors);
@@ -107,55 +92,97 @@ class InputValidator
         }
     }
 
+    private function mergeClassValidation(): array
+    {
+        /** @phpstan-ignore-next-line */
+        $common = static::normalizeConfig($this->info->parentType->config['validation'] ?? []);
+        /** @phpstan-ignore-next-line */
+        $specific = static::normalizeConfig($this->info->fieldDefinition->config['validation'] ?? []);
+
+        return array_filter([
+            'link' => $specific['link'] ?? $common['link'] ?? null,
+            'constraints' => [
+                ...($common['constraints'] ?? []),
+                ...($specific['constraints'] ?? []),
+            ],
+        ]);
+    }
+
+    private function createValidator(MetadataFactory $metadataFactory): ValidatorInterface
+    {
+        $builder = Validation::createValidatorBuilder()
+            ->setMetadataFactory($metadataFactory)
+            ->setConstraintValidatorFactory($this->constraintValidatorFactory);
+
+        if (null !== $this->defaultTranslator) {
+            // @phpstan-ignore-next-line (only for Symfony 4.4)
+            $builder
+                ->setTranslator($this->defaultTranslator)
+                ->setTranslationDomain('validators');
+        }
+
+        return $builder->getValidator();
+    }
+
     /**
      * Creates a composition of ValidationNode objects from args
      * and simultaneously applies to them validation constraints.
      */
-    protected function buildValidationTree(ValidationNode $rootObject, array $propertiesMapping, array $classMapping, array $args): ValidationNode
+    private function buildValidationTree(ValidationNode $rootObject, iterable $fields, array $classValidation, array $inputData): ValidationNode
     {
         $metadata = new ObjectMetadata($rootObject);
 
-        if (!empty($classMapping)) {
-            $this->applyClassConstraints($metadata, $classMapping);
+        if (!empty($classValidation)) {
+            $this->applyClassValidation($metadata, $classValidation);
         }
 
-        foreach ($propertiesMapping as $property => $params) {
-            if (!empty($params['cascade']) && isset($args[$property])) {
-                $options = $params['cascade'];
+        foreach ($fields as $name => $arg) {
+            $property = $arg['name'] ?? $name;
+            $config = static::normalizeConfig($arg['validation'] ?? []);
+
+            if (!array_key_exists($property, $inputData)) {
+                // This field was not provided in the inputData. Do not attempt to validate it.
+                continue;
+            }
+
+            if (isset($config['cascade']) && isset($inputData[$property])) {
+                $groups = $config['cascade'];
+                $argType = $this->unclosure($arg['type']);
 
                 /** @var ObjectType|InputObjectType $type */
-                $type = $options['referenceType'];
+                $type = Type::getNamedType($argType);
 
-                if ($options['isCollection']) {
-                    $rootObject->$property = $this->createCollectionNode($args[$property], $type, $rootObject);
+                if (static::isListOfType($argType)) {
+                    $rootObject->$property = $this->createCollectionNode($inputData[$property], $type, $rootObject);
                 } else {
-                    $rootObject->$property = $this->createObjectNode($args[$property], $type, $rootObject);
+                    $rootObject->$property = $this->createObjectNode($inputData[$property], $type, $rootObject);
                 }
 
                 $valid = new Valid();
 
-                if (!empty($options['groups'])) {
-                    $valid->groups = $options['groups'];
+                if (!empty($groups)) {
+                    $valid->groups = $groups;
                 }
 
                 $metadata->addPropertyConstraint($property, $valid);
             } else {
-                $rootObject->$property = $args[$property] ?? null;
+                $rootObject->$property = $inputData[$property] ?? null;
             }
 
-            $this->restructureShortForm($params);
+            $config = static::normalizeConfig($config);
 
-            foreach ($params ?? [] as $key => $value) {
+            foreach ($config as $key => $value) {
                 switch ($key) {
                     case 'link':
-                        [$fqcn, $property, $type] = $value;
+                        [$fqcn, $classProperty, $type] = $value;
 
                         if (!in_array($fqcn, $this->cachedMetadata)) {
-                            $this->cachedMetadata[$fqcn] = $this->validator->getMetadataFor($fqcn);
+                            /** @phpstan-ignore-next-line */
+                            $this->cachedMetadata[$fqcn] = $this->defaultValidator->getMetadataFor($fqcn);
                         }
 
                         // Get metadata from the property and it's getters
-                        $propertyMetadata = $this->cachedMetadata[$fqcn]->getPropertyMetadata($property);
+                        $propertyMetadata = $this->cachedMetadata[$fqcn]->getPropertyMetadata($classProperty);
 
                         foreach ($propertyMetadata as $memberMetadata) {
                             // Allow only constraints specified by the "link" matcher
@@ -187,10 +214,16 @@ class InputValidator
         return $rootObject;
     }
 
-    /**
-     * @param ObjectType|InputObjectType $type
-     */
-    private function createCollectionNode(array $values, $type, ValidationNode $parent): array
+    private static function isListOfType(GeneratedTypeInterface|ListOfType|NonNull $type): bool
+    {
+        if ($type instanceof ListOfType || ($type instanceof NonNull && $type->getWrappedType() instanceof ListOfType)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function createCollectionNode(array $values, ObjectType|InputObjectType $type, ValidationNode $parent): array
     {
         $collection = [];
 
@@ -201,38 +234,31 @@ class InputValidator
         return $collection;
     }
 
-    /**
-     * @param ObjectType|InputObjectType $type
-     */
-    private function createObjectNode(array $value, $type, ValidationNode $parent): ValidationNode
+    private function createObjectNode(array $value, ObjectType|InputObjectType $type, ValidationNode $parent): ValidationNode
     {
-        $classMapping = $type->config['validation'] ?? [];
-        $propertiesMapping = [];
-
-        foreach ($type->getFields() as $fieldName => $inputField) {
-            $propertiesMapping[$fieldName] = $inputField->config['validation'] ?? [];
-        }
+        /** @phpstan-ignore-next-line */
+        $classValidation = static::normalizeConfig($type->config['validation'] ?? []);
 
         return $this->buildValidationTree(
             new ValidationNode($type, null, $parent, $this->resolverArgs),
-            $propertiesMapping,
-            $classMapping,
+            self::unclosure($type->config['fields']),
+            $classValidation,
             $value
         );
     }
 
-    private function applyClassConstraints(ObjectMetadata $metadata, array $rules): void
+    private function applyClassValidation(ObjectMetadata $metadata, array $rules): void
     {
-        $this->restructureShortForm($rules);
+        $rules = static::normalizeConfig($rules);
 
         foreach ($rules as $key => $value) {
             switch ($key) {
                 case 'link':
-                    $linkedMetadata = $this->validator->getMetadataFor($value);
+                    $linkedMetadata = $this->defaultValidator->getMetadataFor($value);
                     $metadata->addConstraints($linkedMetadata->getConstraints());
                     break;
                 case 'constraints':
-                    foreach ($value as $constraint) {
+                    foreach ($this->unclosure($value) as $constraint) {
                         if ($constraint instanceof Constraint) {
                             $metadata->addConstraint($constraint);
                         } elseif ($constraint instanceof GroupSequence) {
@@ -244,11 +270,41 @@ class InputValidator
         }
     }
 
-    private function restructureShortForm(array &$rules): void
+    /**
+     * Restructures short forms into the full form array and
+     * unwraps constraints in closures.
+     *
+     * @param mixed $config
+     */
+    public static function normalizeConfig($config): array
     {
-        if (isset($rules[0])) {
-            $rules = ['constraints' => $rules];
+        if ($config instanceof Closure) {
+            return ['constraints' => $config()];
         }
+
+        if (self::CASCADE === $config) {
+            return ['cascade' => []];
+        }
+
+        if (isset($config['constraints']) && $config['constraints'] instanceof Closure) {
+            $config['constraints'] = $config['constraints']();
+        }
+
+        return $config;
+    }
+
+    /**
+     * @param mixed $value
+     *
+     * @return mixed
+     */
+    private function unclosure($value)
+    {
+        if ($value instanceof Closure) {
+            return $value();
+        }
+
+        return $value;
     }
 
     /**

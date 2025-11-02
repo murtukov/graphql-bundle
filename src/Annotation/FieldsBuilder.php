@@ -4,27 +4,17 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Annotation;
 
+use Attribute;
+use Doctrine\Common\Annotations\Annotation\NamedArgumentConstructor;
+
 /**
  * Annotation for GraphQL fields builders.
  *
  * @Annotation
- * @Target("ANNOTATION")
+ * @NamedArgumentConstructor
+ * @Target({"ANNOTATION", "CLASS"})
  */
-final class FieldsBuilder implements Annotation
+#[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
+final class FieldsBuilder extends Builder
 {
-    /**
-     * Builder name.
-     *
-     * @Required
-     *
-     * @var string
-     */
-    public string $builder;
-
-    /**
-     * The builder config.
-     *
-     * @var mixed
-     */
-    public $builderConfig = [];
 }

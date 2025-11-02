@@ -6,12 +6,12 @@ namespace Overblog\GraphQLBundle\Definition;
 
 use Overblog\GraphQLBundle\Definition\ConfigProcessor\ConfigProcessorInterface;
 
-final class ConfigProcessor implements ConfigProcessorInterface
+final class ConfigProcessor
 {
     /**
      * @var ConfigProcessorInterface[]
      */
-    private array $processors;
+    private array $processors = [];
 
     public function __construct(iterable $processors)
     {
@@ -30,12 +30,19 @@ final class ConfigProcessor implements ConfigProcessorInterface
         $this->processors[] = $configProcessor;
     }
 
-    public function process(LazyConfig $lazyConfig): LazyConfig
+    /**
+     * @phpstan-template T of array
+     *
+     * @phpstan-param T $config
+     *
+     * @phpstan-return T
+     */
+    public function process(array $config): array
     {
-        foreach ($this->getProcessors() as $processor) {
-            $lazyConfig = $processor->process($lazyConfig);
+        foreach ($this->processors as $processor) {
+            $config = $processor->process($config);
         }
 
-        return $lazyConfig;
+        return $config;
     }
 }

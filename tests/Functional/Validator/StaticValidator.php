@@ -8,7 +8,7 @@ use DateTime;
 use Exception;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
-class StaticValidator
+final class StaticValidator
 {
     /**
      * @param mixed $value
@@ -35,5 +35,10 @@ class StaticValidator
         if ('Lorem Ipsum' === $object->string1) {
             $context->buildViolation('Class is invalid');
         }
+    }
+
+    public static function alwaysTrue(): bool
+    {
+        return true;
     }
 }

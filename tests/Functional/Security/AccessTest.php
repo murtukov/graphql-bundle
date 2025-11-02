@@ -9,6 +9,7 @@ use Error;
 use Overblog\GraphQLBundle\Tests\Functional\App\Mutation\SimpleMutationWithThunkFieldsMutation;
 use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 use Symfony\Component\HttpKernel\Kernel;
+
 use function file_exists;
 use function preg_match;
 use function preg_quote;
@@ -17,37 +18,36 @@ use function spl_autoload_unregister;
 use function sprintf;
 use function sys_get_temp_dir;
 
-class AccessTest extends TestCase
+final class AccessTest extends TestCase
 {
-    /** @var Closure */
     private Closure $loader;
 
     private string $userNameQuery = 'query { user { name } }';
     private string $userRolesQuery = 'query { user { roles } }';
     private string $userIsEnabledQuery = 'query ($hasAccess: Boolean = true) { user { isEnabled(hasAccess: $hasAccess) } }';
 
-    private string $userFriendsQuery = <<<'EOF'
-    query {
-      user {
-        friends(first: 2) {
-          edges {
-            node {
-              name
+    private string $userFriendsQuery = <<<'QUERY'
+        query {
+          user {
+            friends(first: 2) {
+              edges {
+                node {
+                  name
+                }
+              }
             }
           }
         }
-      }
-    }
-    EOF;
+        QUERY;
 
-    private string $simpleMutationWithThunkQuery = <<<'EOF'
-    mutation M {
-      simpleMutationWithThunkFields(input: {inputData: %d, clientMutationId: "bac"}) {
-        result
-        clientMutationId
-      }
-    }
-    EOF;
+    private string $simpleMutationWithThunkQuery = <<<'MUTATION'
+        mutation M {
+          simpleMutationWithThunkFields(input: {inputData: %d, clientMutationId: "bac"}) {
+            result
+            clientMutationId
+          }
+        }
+        MUTATION;
 
     public function setUp(): void
     {
@@ -67,7 +67,11 @@ class AccessTest extends TestCase
     public function testCustomClassLoaderNotRegister(): void
     {
         $this->expectException(Error::class);
-        $this->expectExceptionMessage('Class \'Overblog\GraphQLBundle\Access\__DEFINITIONS__\RootQueryType\' not found');
+        if ((int) phpversion() <= 7) {
+            $this->expectExceptionMessage('Class \'Overblog\GraphQLBundle\Access\__DEFINITIONS__\RootQueryType\' not found');
+        } else {
+            $this->expectExceptionMessage('Class "Overblog\GraphQLBundle\Access\__DEFINITIONS__\RootQueryType" not found');
+        }
         spl_autoload_unregister($this->loader);
         $this->assertResponse($this->userNameQuery, [], static::ANONYMOUS_USER, 'access');
     }
@@ -96,7 +100,6 @@ class AccessTest extends TestCase
                     'warnings' => [
                         [
                             'message' => 'Access denied to this field.',
-                            'extensions' => ['category' => 'user'],
                             'locations' => [['line' => 1, 'column' => 45]],
                             'path' => ['user', 'isEnabled'],
                         ],
@@ -122,7 +125,6 @@ class AccessTest extends TestCase
                 'warnings' => [
                     [
                         'message' => 'Access denied to this field.',
-                        'extensions' => ['category' => 'user'],
                         'locations' => [['line' => 1, 'column' => 16]],
                         'path' => ['user', 'name'],
                     ],
@@ -143,7 +145,6 @@ class AccessTest extends TestCase
                 'warnings' => [
                     [
                         'message' => 'Access denied to this field.',
-                        'extensions' => ['category' => 'user'],
                         'locations' => [
                             [
                                 'line' => 2,
@@ -156,14 +157,14 @@ class AccessTest extends TestCase
             ],
         ];
 
-        $query = <<<'EOF'
-{
-  youShallNotSeeThisUnauthenticated {
-    secretValue
-    youAreAuthenticated
-  }
-}
-EOF;
+        $query = <<<'QUERY'
+            {
+              youShallNotSeeThisUnauthenticated {
+                secretValue
+                youAreAuthenticated
+              }
+            }
+            QUERY;
 
         $this->assertResponse($query, $expected, static::ANONYMOUS_USER, 'access');
     }
@@ -214,7 +215,6 @@ EOF;
                 'warnings' => [
                     [
                         'message' => 'Access denied to this field.',
-                        'extensions' => ['category' => 'user'],
                         'locations' => [
                             [
                                 'line' => 3,
@@ -227,13 +227,13 @@ EOF;
             ],
         ];
 
-        $query = <<<'EOF'
-query MyQuery {
-  user {
-    forbidden
-  }
-}
-EOF;
+        $query = <<<'QUERY'
+            query MyQuery {
+              user {
+                forbidden
+              }
+            }
+            QUERY;
 
         $this->assertResponse($query, $expected, static::USER_ADMIN, 'access');
     }
@@ -299,7 +299,6 @@ EOF;
                 'warnings' => [
                     [
                         'message' => 'Access denied to this field.',
-                        'extensions' => ['category' => 'user'],
                         'locations' => [
                             [
                                 'line' => 3,
@@ -322,7 +321,6 @@ EOF;
             'errors' => [
                 [
                     'message' => 'Access denied to this field.',
-                    'extensions' => ['category' => 'user'],
                     'locations' => [
                         [
                             'line' => 2,
@@ -353,7 +351,6 @@ EOF;
                 'warnings' => [
                     [
                         'message' => 'Access denied to this field.',
-                        'extensions' => ['category' => 'user'],
                         'locations' => [
                             [
                                 'line' => 1,

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Overblog\GraphQLBundle\Tests\Transformer;
 
 use Exception;
-use GraphQL\Type\Definition\EnumType;
+use Generator;
 use GraphQL\Type\Definition\InputObjectType;
+use GraphQL\Type\Definition\ListOfType;
+use GraphQL\Type\Definition\NonNull;
+use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
+use Overblog\GraphQLBundle\Definition\Type\PhpEnumType;
 use Overblog\GraphQLBundle\Error\InvalidArgumentError;
 use Overblog\GraphQLBundle\Error\InvalidArgumentsError;
 use Overblog\GraphQLBundle\Transformer\ArgumentsTransformer;
@@ -18,11 +22,12 @@ use Symfony\Component\Validator\ConstraintViolation;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Validator\RecursiveValidator;
+
 use function class_exists;
 use function count;
 use function is_array;
 
-class ArgumentsTransformerTest extends TestCase
+final class ArgumentsTransformerTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -32,10 +37,10 @@ class ArgumentsTransformerTest extends TestCase
         }
     }
 
-    private function getTransformer(array $classesMap = null, ConstraintViolationList $validateReturn = null): ArgumentsTransformer
+    private function getTransformer(array $classesMap = [], ?ConstraintViolationList $validateReturn = null): ArgumentsTransformer
     {
         $validator = $this->createMock(RecursiveValidator::class);
-        $validator->method('validate')->willReturn($validateReturn ?: []);
+        $validator->method('validate')->willReturn($validateReturn ?? new ConstraintViolationList());
 
         return new ArgumentsTransformer($validator, $classesMap);
     }
@@ -57,10 +62,16 @@ class ArgumentsTransformerTest extends TestCase
                 'field1' => Type::string(),
                 'field2' => Type::int(),
                 'field3' => Type::boolean(),
+                'field7' => Type::string(),
+                'field8' => ['type' => Type::string(), 'defaultValue' => 'default_value_when_not_set_in_data'],
+                'field9' => [
+                    'type' => Type::nonNull(Type::string()),
+                    'defaultValue' => 'default_value_when_not_set_in_data',
+                ],
             ],
         ]);
 
-        $t3 = new EnumType([
+        $t3 = new PhpEnumType([
             'name' => 'Enum1',
             'values' => ['op1' => 1, 'op2' => 2, 'op3' => 3],
         ]);
@@ -81,7 +92,38 @@ class ArgumentsTransformerTest extends TestCase
             ],
         ]);
 
-        return [$t1, $t2, $t3, $t4];
+        $t5 = new InputObjectType([
+            'name' => 'InputType4',
+            'fields' => [
+                'field1' => ['type' => Type::string(), 'defaultValue' => 'value_from_config_field1'],
+                'field2' => Type::listOf(Type::string()),
+                'field3' => ['type' => Type::int(), 'defaultValue' => 10],
+                'field4' => Type::string(),
+            ],
+        ]);
+
+        $t6 = new ObjectType([
+            'name' => 'Type1',
+            'fields' => [
+                'field1' => Type::string(),
+            ],
+        ]);
+
+        $types = [$t1, $t2, $t3, $t4, $t5, $t6];
+
+        if (PHP_VERSION_ID >= 80100) {
+            $types[] = new PhpEnumType([
+                'name' => 'EnumPhp',
+                'enumClass' => EnumPhp::class,
+                'values' => [
+                    'VALUE1' => 'VALUE1',
+                    'VALUE2' => 'VALUE2',
+                    'VALUE3' => 'VALUE3',
+                ],
+            ]);
+        }
+
+        return $types;
     }
 
     public function testPopulating(): void
@@ -90,6 +132,7 @@ class ArgumentsTransformerTest extends TestCase
             'InputType1' => ['type' => 'input', 'class' => InputType1::class],
             'InputType2' => ['type' => 'input', 'class' => InputType2::class],
             'InputType3' => ['type' => 'input', 'class' => InputType3::class],
+            'InputType4' => ['type' => 'input', 'class' => InputType4::class],
         ]);
 
         $info = $this->getResolveInfo(self::getTypes());
@@ -106,6 +149,12 @@ class ArgumentsTransformerTest extends TestCase
         $this->assertEquals($res->field1, $data['field1']);
         $this->assertEquals($res->field2, $data['field2']);
         $this->assertEquals($res->field3, $data['field3']);
+        $this->assertEquals($res->field4, 'default_value_when_not_set_in_data');
+        $this->assertEquals($res->field5, []);
+        $this->assertEquals($res->field6, null);
+        $this->assertEquals($res->field7, null);
+        $this->assertEquals($res->field8, 'default_value_when_not_set_in_data');
+        $this->assertEquals($res->field9, 'default_value_when_not_set_in_data');
 
         $data = [
             'field1' => [
@@ -147,6 +196,16 @@ class ArgumentsTransformerTest extends TestCase
         $this->assertEquals($data['field1'][1]['field2'], $res->field1[1]->field2);
         $this->assertEquals($data['field1'][1]['field3'], $res->field1[1]->field3);
 
+        // InputType4
+        $data = ['field4' => 'value_field4'];
+        $res = $transformer->getInstanceAndValidate('InputType4', $data, $info, 'input');
+
+        $this->assertInstanceOf(InputType4::class, $res);
+        $this->assertEquals($res->field1, 'default_value_field1');
+        $this->assertEquals($res->field2, null);
+        $this->assertEquals($res->field3, 5);
+        $this->assertEquals($res->field4, 'value_field4');
+
         $res = $transformer->getInstanceAndValidate('Enum1', 2, $info, 'enum1');
 
         $this->assertEquals(2, $res);
@@ -160,6 +219,12 @@ class ArgumentsTransformerTest extends TestCase
         $res = $transformer->getInstanceAndValidate('Enum1', 2, $info, 'enum1');
         $this->assertInstanceOf(Enum1::class, $res);
         $this->assertEquals(2, $res->value);
+
+        if (PHP_VERSION_ID >= 80100) {
+            $res = $transformer->getInstanceAndValidate('EnumPhp', EnumPhp::VALUE2, $info, 'enumPhp');
+            $this->assertInstanceOf(EnumPhp::class, $res);
+            $this->assertEquals($res, EnumPhp::VALUE2);
+        }
 
         $mapping = ['input1' => 'InputType1', 'input2' => 'InputType2', 'enum1' => 'Enum1', 'int1' => 'Int!', 'string1' => 'String!'];
         $data = [
@@ -204,7 +269,7 @@ class ArgumentsTransformerTest extends TestCase
         try {
             $res = $builder->getArguments($mapping, $data, $this->getResolveInfo(self::getTypes()));
             $this->fail("When input data validation fail, it should raise an Overblog\GraphQLBundle\Error\InvalidArgumentsError exception");
-        } catch (Exception $e) {
+        } catch (InvalidArgumentsError $e) {
             $this->assertInstanceOf(InvalidArgumentsError::class, $e);
             $first = $e->getErrors()[0];
             $this->assertInstanceOf(InvalidArgumentError::class, $first);
@@ -299,5 +364,105 @@ class ArgumentsTransformerTest extends TestCase
 
             $this->assertEquals($e->toState(), $expected);
         }
+    }
+
+    public function getWrappedInputObject(): Generator
+    {
+        $inputObject = new InputObjectType([
+            'name' => 'InputType1',
+            'fields' => [
+                'field1' => Type::string(),
+                'field2' => Type::int(),
+                'field3' => Type::boolean(),
+            ],
+        ]);
+        yield [$inputObject, false];
+        yield [new NonNull($inputObject), false];
+    }
+
+    /** @dataProvider getWrappedInputObject */
+    public function testInputObjectWithWrappingType(Type $type): void
+    {
+        $transformer = $this->getTransformer(
+            [
+                'InputType1' => ['type' => 'input', 'class' => InputType1::class],
+            ],
+            new ConstraintViolationList()
+        );
+        $info = $this->getResolveInfo(self::getTypes());
+
+        $data = ['field1' => 'hello', 'field2' => 12, 'field3' => true];
+
+        $inputValue = $transformer->getInstanceAndValidate($type->toString(), $data, $info, 'input1');
+
+        /** @var InputType1 $inputValue */
+        $this->assertInstanceOf(InputType1::class, $inputValue);
+        $this->assertEquals($inputValue->field1, $data['field1']);
+        $this->assertEquals($inputValue->field2, $data['field2']);
+        $this->assertEquals($inputValue->field3, $data['field3']);
+    }
+
+    public function getWrappedInputObjectList(): Generator
+    {
+        $inputObject = new InputObjectType([
+            'name' => 'InputType1',
+            'fields' => [
+                'field1' => Type::string(),
+                'field2' => Type::int(),
+                'field3' => Type::boolean(),
+            ],
+        ]);
+        yield [new ListOfType($inputObject)];
+        yield [new ListOfType(new NonNull($inputObject))];
+        yield [new NonNull(new ListOfType($inputObject))];
+        yield [new NonNull(new ListOfType(new NonNull($inputObject)))];
+    }
+
+    /** @dataProvider getWrappedInputObjectList */
+    public function testInputObjectWithWrappingTypeList(Type $type): void
+    {
+        $transformer = $this->getTransformer(
+            ['InputType1' => ['type' => 'input', 'class' => InputType1::class]],
+            new ConstraintViolationList()
+        );
+        $info = $this->getResolveInfo(self::getTypes());
+
+        $data = ['field1' => 'hello', 'field2' => 12, 'field3' => true];
+
+        $inputValue = $transformer->getInstanceAndValidate($type->toString(), [$data], $info, 'input1');
+        $inputValue = reset($inputValue);
+
+        /** @var InputType1 $inputValue */
+        $this->assertInstanceOf(InputType1::class, $inputValue);
+        $this->assertEquals($inputValue->field1, $data['field1']);
+        $this->assertEquals($inputValue->field2, $data['field2']);
+        $this->assertEquals($inputValue->field3, $data['field3']);
+    }
+
+    public function testIgnoreNonInputObjectValidation(): void
+    {
+        $validator = $this->createMock(RecursiveValidator::class);
+        $validator->expects($this->never())->method('validate');
+
+        $transformer = new ArgumentsTransformer($validator, [
+            'Type1' => ['type' => 'object', 'class' => Type1::class],
+        ]);
+
+        $info = $this->getResolveInfo(self::getTypes());
+        $data = new Type1();
+
+        $typeValue = $transformer->getInstanceAndValidate('Type1', $data, $info, 'type1');
+
+        $this->assertEquals($data, $typeValue);
+    }
+
+    public function testResolveInfoInjection(): void
+    {
+        $transformer = $this->getTransformer();
+        $resolveInfo = $this->getResolveInfo([]);
+
+        $result = $transformer->getArguments(['resolveInfo' => ArgumentsTransformer::RESOLVE_INFO_TOKEN], [], $resolveInfo);
+
+        $this->assertTrue($result[0] === $resolveInfo);
     }
 }

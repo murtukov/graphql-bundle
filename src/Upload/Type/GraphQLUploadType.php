@@ -7,17 +7,14 @@ namespace Overblog\GraphQLBundle\Upload\Type;
 use GraphQL\Error\InvariantViolation;
 use GraphQL\Type\Definition\ScalarType;
 use Symfony\Component\HttpFoundation\File\File;
-use function get_class;
+
 use function gettype;
 use function is_object;
 use function sprintf;
 
-class GraphQLUploadType extends ScalarType
+final class GraphQLUploadType extends ScalarType
 {
-    /**
-     * @param string $name
-     */
-    public function __construct(string $name = null)
+    public function __construct(?string $name = null)
     {
         parent::__construct([
             'name' => $name,
@@ -31,13 +28,13 @@ class GraphQLUploadType extends ScalarType
     /**
      * {@inheritdoc}
      */
-    public function parseValue($value)
+    public function parseValue($value): mixed
     {
         if (null !== $value && !$value instanceof File) {
             throw new InvariantViolation(sprintf(
                 'Upload should be null or instance of "%s" but %s given.',
                 File::class,
-                is_object($value) ? get_class($value) : gettype($value)
+                is_object($value) ? $value::class : gettype($value)
             ));
         }
 
@@ -55,7 +52,7 @@ class GraphQLUploadType extends ScalarType
     /**
      * {@inheritdoc}
      */
-    public function parseLiteral($valueNode, array $variables = null): void
+    public function parseLiteral($valueNode, ?array $variables = null): void
     {
         throw new InvariantViolation(sprintf('%s scalar literal unsupported.', $this->name));
     }

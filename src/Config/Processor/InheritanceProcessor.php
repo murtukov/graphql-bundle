@@ -6,6 +6,7 @@ namespace Overblog\GraphQLBundle\Config\Processor;
 
 use Exception;
 use InvalidArgumentException;
+
 use function array_column;
 use function array_filter;
 use function array_flip;
@@ -39,9 +40,7 @@ final class InheritanceProcessor implements ProcessorInterface
 
     private static function removedDecorators(array $configs): array
     {
-        return array_filter($configs, function ($config) {
-            return !isset($config['decorator']) || true !== $config['decorator'];
-        });
+        return array_filter($configs, fn ($config) => !isset($config['decorator']) || true !== $config['decorator']);
     }
 
     private static function processConfigsHeirs(array $configs): array
@@ -125,7 +124,7 @@ final class InheritanceProcessor implements ProcessorInterface
         string $name,
         array $configs,
         array $allowedTypes,
-        string $child = null,
+        ?string $child = null,
         array $typesTreated = []
     ): array {
         self::checkTypeExists($name, $configs, $child);

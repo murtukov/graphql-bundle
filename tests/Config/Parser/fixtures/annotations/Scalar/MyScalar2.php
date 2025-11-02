@@ -9,6 +9,7 @@ use Overblog\GraphQLBundle\Annotation as GQL;
 /**
  * @GQL\Scalar(name="MyScalar", scalarType="newObject('App\\Type\\EmailType')")
  */
-class MyScalar2
+#[GQL\Scalar(name: 'MyScalar', scalarType: "newObject('App\\Type\\EmailType')")]
+final class MyScalar2
 {
 }

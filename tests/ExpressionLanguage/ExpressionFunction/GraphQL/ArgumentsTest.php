@@ -6,7 +6,6 @@ namespace Overblog\GraphQLBundle\Tests\ExpressionLanguage\ExpressionFunction\Gra
 
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Schema;
-use Overblog\GraphQLBundle\Definition\GlobalVariables;
 use Overblog\GraphQLBundle\ExpressionLanguage\ExpressionFunction\GraphQL\Arguments;
 use Overblog\GraphQLBundle\Generator\TypeGenerator;
 use Overblog\GraphQLBundle\Tests\ExpressionLanguage\TestCase;
@@ -15,12 +14,14 @@ use Overblog\GraphQLBundle\Tests\Transformer\Enum1;
 use Overblog\GraphQLBundle\Tests\Transformer\InputType1;
 use Overblog\GraphQLBundle\Tests\Transformer\InputType2;
 use Overblog\GraphQLBundle\Transformer\ArgumentsTransformer;
+use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Validator\RecursiveValidator;
+
 use function class_exists;
 use function count;
 
-class ArgumentsTest extends TestCase
+final class ArgumentsTest extends TestCase
 {
     public function setUp(): void
     {
@@ -43,10 +44,10 @@ class ArgumentsTest extends TestCase
         return $info;
     }
 
-    private function getTransformer(array $classesMap = null): ArgumentsTransformer
+    private function getTransformer(?array $classesMap = null): ArgumentsTransformer
     {
         $validator = $this->createMock(RecursiveValidator::class);
-        $validator->method('validate')->willReturn([]);
+        $validator->method('validate')->willReturn(new ConstraintViolationList());
 
         return new ArgumentsTransformer($validator, $classesMap);
     }
@@ -81,7 +82,7 @@ class ArgumentsTest extends TestCase
             ]
         );
 
-        $globalVars = new GlobalVariables(
+        $services = $this->createGraphQLServices(
             [
                 'container' => $this->getDIContainerMock(['overblog_graphql.arguments_transformer' => $transformer]),
             ]
@@ -90,7 +91,7 @@ class ArgumentsTest extends TestCase
         $res = $this->expressionLanguage->evaluate(
             'arguments(mapping, data, info)',
             [
-                TypeGenerator::GLOBAL_VARS => $globalVars,
+                TypeGenerator::GRAPHQL_SERVICES => $services,
                 'mapping' => $mapping,
                 'data' => $data,
                 'info' => $info,

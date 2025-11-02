@@ -6,35 +6,35 @@ namespace Overblog\GraphQLBundle\Tests\Functional\Security;
 
 use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 
-class QueryComplexityTest extends TestCase
+final class QueryComplexityTest extends TestCase
 {
     private string $userFriendsWithoutLimitQuery = <<<'EOF'
-    query {
-      user {
-        friends {
-          edges {
-            node {
-              name
+        query {
+          user {
+            friends {
+              edges {
+                node {
+                  name
+                }
+              }
             }
           }
         }
-      }
-    }
-    EOF;
+        EOF;
 
     private string $userFriendsWithLimitQuery = <<<'EOF'
-    query {
-      user {
-        friends(first: 1) {
-          edges {
-            node {
-              name
+        query {
+          user {
+            friends(first: 1) {
+              edges {
+                node {
+                  name
+                }
+              }
             }
           }
         }
-      }
-    }
-    EOF;
+        EOF;
 
     public function testComplexityReachLimitation(): void
     {
@@ -42,7 +42,6 @@ class QueryComplexityTest extends TestCase
             'errors' => [
                 [
                     'message' => 'Max query complexity should be 10 but got 54.',
-                    'extensions' => ['category' => 'graphql'],
                 ],
             ],
         ];
@@ -56,7 +55,6 @@ class QueryComplexityTest extends TestCase
             'errors' => [
                 [
                     'message' => 'Max query complexity should be 10 but got 54.',
-                    'extensions' => ['category' => 'graphql'],
                 ],
             ],
         ];

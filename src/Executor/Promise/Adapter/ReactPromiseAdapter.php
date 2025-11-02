@@ -11,15 +11,16 @@ use GraphQL\Executor\Promise\Promise;
 use InvalidArgumentException;
 use Overblog\GraphQLBundle\Executor\Promise\PromiseAdapterInterface;
 use React\Promise\PromiseInterface;
+
 use function sprintf;
 use function usleep;
 
-class ReactPromiseAdapter extends BaseReactPromiseAdapter implements PromiseAdapterInterface
+final class ReactPromiseAdapter extends BaseReactPromiseAdapter implements PromiseAdapterInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function isThenable($value)
+    public function isThenable($value): bool
     {
         return parent::isThenable($value instanceof Promise ? $value->adoptedPromise : $value);
     }
@@ -27,7 +28,7 @@ class ReactPromiseAdapter extends BaseReactPromiseAdapter implements PromiseAdap
     /**
      * {@inheritdoc}
      */
-    public function convertThenable($thenable)
+    public function convertThenable($thenable): Promise
     {
         if ($thenable instanceof Promise) {
             return $thenable;
@@ -41,7 +42,7 @@ class ReactPromiseAdapter extends BaseReactPromiseAdapter implements PromiseAdap
      *
      * @throws Exception
      */
-    public function wait(Promise $promise, callable $onProgress = null): ?ExecutionResult
+    public function wait(Promise $promise, ?callable $onProgress = null): ?ExecutionResult
     {
         if (!$this->isThenable($promise)) {
             throw new InvalidArgumentException(sprintf('The "%s" method must be call with compatible a Promise.', __METHOD__));

@@ -6,19 +6,26 @@ namespace Overblog\GraphQLBundle\Relay\Connection\Output;
 
 use Overblog\GraphQLBundle\Relay\Connection\EdgeInterface;
 
+/**
+ * @phpstan-template T
+ *
+ * @phpstan-implements EdgeInterface<T>
+ */
 class Edge implements EdgeInterface
 {
     use DeprecatedPropertyPublicAccessTrait;
 
     protected ?string $cursor;
 
-    /** @var mixed */
-    protected $node;
+    /** @phpstan-var T|null */
+    protected mixed $node;
 
     /**
      * @param mixed $node
+     *
+     * @phpstan-param T|null $node
      */
-    public function __construct(string $cursor = null, $node = null)
+    public function __construct(?string $cursor = null, $node = null)
     {
         $this->cursor = $cursor;
         $this->node = $node;
@@ -43,7 +50,7 @@ class Edge implements EdgeInterface
     /**
      * {@inheritdoc}
      */
-    public function getCursor(): ? string
+    public function getCursor(): ?string
     {
         return $this->cursor;
     }

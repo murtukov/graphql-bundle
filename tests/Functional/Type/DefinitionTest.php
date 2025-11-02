@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Overblog\GraphQLBundle\Tests\Functional\Type;
 
 use GraphQL\Type\Definition\EnumType;
+use GraphQL\Type\Definition\InputObjectType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 
-class DefinitionTest extends TestCase
+final class DefinitionTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -23,7 +24,7 @@ class DefinitionTest extends TestCase
         /** @var EnumType $enumTypeWithDeprecatedValue */
         $enumTypeWithDeprecatedValue = $this->getType('EnumWithDeprecatedValue');
         $value = $enumTypeWithDeprecatedValue->getValues()[0];
-        $this->assertSame([
+        $this->assertSame([ // @phpstan-ignore-line
             'deprecationReason' => 'Just because',
             'value' => 'foo',
             'name' => 'foo',
@@ -41,6 +42,17 @@ class DefinitionTest extends TestCase
         $this->assertSame('A terrible reason', $field->deprecationReason);
         $this->assertSame('bar', $field->name);
         $this->assertSame([], $field->args);
+    }
+
+    public function testDefinesAnInputObjectTypeWithDeprecatedField(): void
+    {
+        /** @var InputObjectType $InputObjectWithDeprecatedField */
+        $InputObjectWithDeprecatedField = $this->getType('InputObjectWithDeprecatedField');
+        $field = $InputObjectWithDeprecatedField->getField('baz');
+        $this->assertSame(Type::string(), $field->getType());
+        $this->assertTrue($field->isDeprecated());
+        $this->assertSame('A terrible reason for input', $field->deprecationReason);
+        $this->assertSame('baz', $field->name);
     }
 
     private function getType(string $type): ?Type

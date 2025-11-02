@@ -6,9 +6,9 @@ namespace Overblog\GraphQLBundle\Tests\DependencyInjection\Builder;
 
 use Overblog\GraphQLBundle\Definition\Builder\MappingInterface;
 
-class TimestampFields implements MappingInterface
+final class TimestampFields implements MappingInterface
 {
-    public function toMappingDefinition(array $config = null): array
+    public function toMappingDefinition(?array $config = null): array
     {
         return [
             'createdAt' => [

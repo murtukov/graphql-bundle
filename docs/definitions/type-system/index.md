@@ -8,7 +8,7 @@ Types can be define 3 different ways:
 
 1. **The configuration way**
 
-    Creating this file extension **.types.yml** or **.types.xml**
+    Creating this file extension **.types.yml**
     in `src/*Bundle/Resources/config/graphql` or `app/config/graphql`.
     See the different possible types:
     * [Scalars](scalars.md)
@@ -28,7 +28,7 @@ Types can be define 3 different ways:
                 # auto_discover: false # to disable bundles and root dir auto discover
                 types:
                     -
-                        type: yaml # or xml or graphql or annotation null
+                        type: yaml # or graphql or annotation null
                         dir: "%kernel.root_dir%/.../mapping" # sub directories are also searched
                         # suffix: .types # use to change default file suffix
                     -
@@ -41,7 +41,7 @@ Types can be define 3 different ways:
     You can also declare PHP types (any subclass of `GraphQL\Type\Definition\Type`) 
     in `src/*Bundle/GraphQL` or `app/GraphQL`
     they will be auto discover (thanks to auto mapping). Auto map classes are accessible by service id
-    (example: `AppBunble\GraphQL\Type\DateTimeType`), you can also alias a type by
+    (example: `AppBundle\GraphQL\Type\DateTimeType`), you can also alias a type by
     implementing `Overblog\GraphQLBundle\Definition\Resolver\AliasedInterface`
     that returns an array of aliases.
 

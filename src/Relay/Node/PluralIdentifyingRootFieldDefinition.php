@@ -6,11 +6,11 @@ namespace Overblog\GraphQLBundle\Relay\Node;
 
 use InvalidArgumentException;
 use Overblog\GraphQLBundle\Definition\Builder\MappingInterface;
+
 use function array_key_exists;
 use function is_string;
 use function json_encode;
 use function sprintf;
-use function strpos;
 use function substr;
 
 final class PluralIdentifyingRootFieldDefinition implements MappingInterface
@@ -36,10 +36,10 @@ final class PluralIdentifyingRootFieldDefinition implements MappingInterface
         $argName = $config['argName'];
 
         return [
-            'type' => "[${config['outputType']}]",
-            'args' => [$argName => ['type' => "[${config['inputType']}!]!"]],
+            'type' => "[{$config['outputType']}]",
+            'args' => [$argName => ['type' => "[{$config['inputType']}!]!"]],
             'resolve' => sprintf(
-                "@=resolver('relay_plural_identifying_field', [args['$argName'], context, info, resolveSingleInputCallback(%s)])",
+                "@=query('relay_plural_identifying_field', args.$argName, context, info, resolveSingleInputCallback(%s))",
                 $this->cleanResolveSingleInput($config['resolveSingleInput'])
             ),
         ];
@@ -52,7 +52,7 @@ final class PluralIdentifyingRootFieldDefinition implements MappingInterface
      */
     private function cleanResolveSingleInput($resolveSingleInput)
     {
-        if (is_string($resolveSingleInput) && 0 === strpos($resolveSingleInput, '@=')) {
+        if (is_string($resolveSingleInput) && str_starts_with($resolveSingleInput, '@=')) {
             $cleanResolveSingleInput = substr($resolveSingleInput, 2);
         } else {
             $cleanResolveSingleInput = json_encode($resolveSingleInput);

@@ -10,12 +10,14 @@ use GraphQL\Type\Definition\ListOfType;
 use GraphQL\Type\Definition\NonNull;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
+use Overblog\GraphQLBundle\Definition\Type\PhpEnumType;
 use Overblog\GraphQLBundle\Error\InvalidArgumentError;
 use Overblog\GraphQLBundle\Error\InvalidArgumentsError;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+
 use function array_map;
 use function count;
 use function is_array;
@@ -24,13 +26,15 @@ use function sprintf;
 use function strlen;
 use function substr;
 
-class ArgumentsTransformer
+final class ArgumentsTransformer
 {
-    protected PropertyAccessor $accessor;
-    protected ?ValidatorInterface $validator;
-    protected array $classesMap;
+    public const RESOLVE_INFO_TOKEN = '#ResolveInfo';
 
-    public function __construct(ValidatorInterface $validator = null, array $classesMap = [])
+    private PropertyAccessor $accessor;
+    private ?ValidatorInterface $validator;
+    private array $classesMap;
+
+    public function __construct(?ValidatorInterface $validator = null, array $classesMap = [])
     {
         $this->validator = $validator;
         $this->accessor = PropertyAccess::createPropertyAccessor();
@@ -75,12 +79,14 @@ class ArgumentsTransformer
         }
 
         if ($multiple) {
-            return array_map(function ($data) use ($type, $info) {
-                return $this->populateObject($type, $data, false, $info);
-            }, $data);
+            return array_map(fn ($data) => $this->populateObject($type, $data, false, $info), $data);
         }
 
         if ($type instanceof EnumType) {
+            /** Enum based on PHP Enum are already processed by PhpEnumType */
+            if ($type instanceof PhpEnumType && $type->isEnumPhp()) { /** @phpstan-ignore-line */
+                return $data;
+            }
             $instance = $this->getTypeClassInstance($type->name);
             if ($instance) {
                 $this->accessor->setValue($instance, 'value', $data);
@@ -98,6 +104,9 @@ class ArgumentsTransformer
             $fields = $type->getFields();
 
             foreach ($fields as $name => $field) {
+                if ($field->defaultValueExists() && !array_key_exists($name, $data)) {
+                    continue;
+                }
                 $fieldData = $this->accessor->getValue($data, sprintf('[%s]', $name));
                 $fieldType = $field->getType();
 
@@ -122,7 +131,7 @@ class ArgumentsTransformer
 
     /**
      * Given a GraphQL type and an array of data, populate corresponding object recursively
-     * using annoted classes.
+     * using annotated classes.
      *
      * @param mixed $data
      *
@@ -132,12 +141,21 @@ class ArgumentsTransformer
     {
         $isRequired = '!' === $argType[strlen($argType) - 1];
         $isMultiple = '[' === $argType[0];
-        $endIndex = ($isRequired ? 1 : 0) + ($isMultiple ? 1 : 0);
+        $isStrictMultiple = false;
+        if ($isMultiple) {
+            $isStrictMultiple = '!' === $argType[strpos($argType, ']') - 1];
+        }
+
+        $endIndex = ($isRequired ? 1 : 0) + ($isMultiple ? 1 : 0) + ($isStrictMultiple ? 1 : 0);
         $type = substr($argType, $isMultiple ? 1 : 0, $endIndex > 0 ? -$endIndex : strlen($argType));
 
-        $result = $this->populateObject($this->getType($type, $info), $data, $isMultiple, $info);
+        $gqlType = $this->getType($type, $info);
+        $result = $this->populateObject($gqlType, $data, $isMultiple, $info);
 
-        if (null !== $this->validator) {
+        // We only want to validate input object types and not the scalar or object types that are already validated by the GraphQL library.
+        $shouldValidate = $gqlType instanceof InputObjectType;
+
+        if (null !== $this->validator && $shouldValidate) {
             $errors = new ConstraintViolationList();
             if (is_object($result)) {
                 $errors = $this->validator->validate($result);
@@ -174,6 +192,10 @@ class ArgumentsTransformer
 
         foreach ($mapping as $name => $type) {
             try {
+                if (self::RESOLVE_INFO_TOKEN === $type) {
+                    $args[] = $info;
+                    continue;
+                }
                 $value = $this->getInstanceAndValidate($type, $data[$name], $info, $name);
                 $args[] = $value;
             } catch (InvalidArgumentError $exception) {

@@ -9,10 +9,11 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Overblog\GraphQLBundle\Definition\Argument;
 use Overblog\GraphQLBundle\Resolver\ResolverMap;
 use Overblog\GraphQLBundle\Tests\Functional\App\Type\YearScalarType;
+
 use function array_filter;
 use function in_array;
 
-class SchemaLanguageQueryResolverMap extends ResolverMap
+final class SchemaLanguageQueryResolverMap extends ResolverMap
 {
     protected function map(): array
     {
@@ -22,17 +23,13 @@ class SchemaLanguageQueryResolverMap extends ResolverMap
                 'findHumansByDateOfBirth' => function ($value, Argument $args) {
                     $years = $args['years'];
 
-                    return array_filter(Characters::getHumans(), function ($human) use ($years) {
-                        return in_array($human['dateOfBirth'], $years);
-                    });
+                    return array_filter(Characters::getHumans(), fn ($human) => in_array($human['dateOfBirth'], $years));
                 },
                 'humans' => [Characters::class, 'getHumans'],
                 'direwolves' => [Characters::class, 'getDirewolves'],
             ],
             'Character' => [
-                self::RESOLVE_TYPE => function ($value) {
-                    return Characters::TYPE_HUMAN === $value['type'] ? 'Human' : 'Direwolf';
-                },
+                self::RESOLVE_TYPE => fn ($value) => Characters::TYPE_HUMAN === $value['type'] ? 'Human' : 'Direwolf',
             ],
             'Human' => [
                 'direwolf' => function ($value) {
@@ -51,9 +48,7 @@ class SchemaLanguageQueryResolverMap extends ResolverMap
             ],
             // custom scalar
             'Year' => [
-                self::SCALAR_TYPE => function () {
-                    return new YearScalarType();
-                },
+                self::SCALAR_TYPE => fn () => new YearScalarType(),
             ],
         ];
     }

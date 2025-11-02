@@ -7,9 +7,10 @@ namespace Overblog\GraphQLBundle\Tests\Functional\App\Resolver;
 use GraphQL\Type\Definition\Type;
 use Overblog\GraphQLBundle\Relay\Node\GlobalId;
 use Overblog\GraphQLBundle\Resolver\TypeResolver;
+
 use function array_values;
 
-class GlobalResolver
+final class GlobalResolver
 {
     private TypeResolver $typeResolver;
 
@@ -55,7 +56,7 @@ class GlobalResolver
 
     public function idFetcher(string $globalId): array
     {
-        list($type, $id) = array_values(GlobalId::fromGlobalId($globalId));
+        [$type, $id] = array_values(GlobalId::fromGlobalId($globalId));
 
         if ('User' === $type) {
             return $this->userData[$id];

@@ -9,12 +9,14 @@ use Overblog\GraphQLBundle\Annotation as GQL;
 /**
  * @GQL\Type
  */
-class InvalidPrivateMethod
+#[GQL\Type]
+final class InvalidPrivateMethod
 {
     /**
      * @GQL\Field
      */
-    protected function gql(): string
+    #[GQL\Field]
+    private function gql(): string
     {
         return 'invalid';
     }

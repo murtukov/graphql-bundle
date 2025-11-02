@@ -13,9 +13,10 @@ use Overblog\GraphQLBundle\Executor\Promise\Adapter\ReactPromiseAdapter;
 use Overblog\GraphQLBundle\Relay\Connection\ConnectionBuilder;
 use Overblog\GraphQLBundle\Relay\Connection\Output\Edge;
 use React\Promise\Promise as ReactPromise;
+
 use function count;
 
-class ConnectionResolver
+final class ConnectionResolver
 {
     private array $allUsers = [
         [
@@ -49,23 +50,17 @@ class ConnectionResolver
 
     public function friendsResolver(array $user, ArgumentInterface $args): GraphQLPromise
     {
-        return $this->promiseAdapter->create(function (callable $resolve) use ($user, $args) {
-            return $resolve((new ConnectionBuilder())->connectionFromArray($user['friends'], $args));
-        });
+        return $this->promiseAdapter->create(fn (callable $resolve) => $resolve((new ConnectionBuilder())->connectionFromArray($user['friends'], $args)));
     }
 
     public function resolveNode(Edge $edge): GraphQLPromise
     {
-        return $this->promiseAdapter->create(function (callable $resolve) use ($edge) {
-            return $resolve(isset($this->allUsers[$edge->getNode()]) ? $this->allUsers[$edge->getNode()] : null);
-        });
+        return $this->promiseAdapter->create(fn (callable $resolve) => $resolve(isset($this->allUsers[$edge->getNode()]) ? $this->allUsers[$edge->getNode()] : null));
     }
 
     public function resolveConnection(): GraphQLPromise
     {
-        return $this->promiseAdapter->create(function (callable $resolve) {
-            return $resolve(count($this->allUsers) - 1);
-        });
+        return $this->promiseAdapter->create(fn (callable $resolve) => $resolve(count($this->allUsers) - 1));
     }
 
     /**
@@ -74,13 +69,9 @@ class ConnectionResolver
     public function resolveQuery()
     {
         if ($this->promiseAdapter instanceof SyncPromiseAdapter) {
-            return new Deferred(function () {
-                return $this->allUsers[0];
-            });
+            return new Deferred(fn () => $this->allUsers[0]);
         } elseif ($this->promiseAdapter instanceof ReactPromiseAdapter) {
-            return new ReactPromise(function (callable $resolve) {
-                return $resolve($this->allUsers[0]);
-            });
+            return new ReactPromise(fn (callable $resolve) => $resolve($this->allUsers[0]));
         }
 
         return $this->allUsers[0];

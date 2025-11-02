@@ -5,14 +5,9 @@ declare(strict_types=1);
 namespace Overblog\GraphQLBundle\Tests\Functional\App\Resolver;
 
 use GraphQL\Type\Definition\ResolveInfo;
-use Overblog\GraphQLBundle\Resolver\TypeResolver;
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
-use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 
-class NodeResolver implements ContainerAwareInterface
+final class NodeResolver
 {
-    use ContainerAwareTrait;
-
     private array $userData = [
         '1' => [
             'id' => 1,

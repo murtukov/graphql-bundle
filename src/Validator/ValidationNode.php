@@ -4,24 +4,29 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Validator;
 
+use AllowDynamicProperties;
 use GraphQL\Type\Definition\InputObjectType;
+use GraphQL\Type\Definition\NamedType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Overblog\GraphQLBundle\Definition\Argument;
+use Overblog\GraphQLBundle\Definition\ResolverArgs;
+
 use function in_array;
 
 /**
  * ValidationNode.
  *
  * Holds the input data of the associated to it GraphQL type. Properties will be
- * created dinamically in runtime. In order to avoid name conflicts all built in
+ * created dynamically in runtime. In order to avoid name conflicts all built in
  * property names are prefixed with double underscores.
  *
  * It also contains variables of the resolver context, in which this class was
  * instantiated.
  */
-class ValidationNode
+#[AllowDynamicProperties]
+final class ValidationNode
 {
     private const KNOWN_VAR_NAMES = ['value', 'args', 'context', 'info'];
 
@@ -29,9 +34,9 @@ class ValidationNode
     private ?string $__fieldName;
 
     /**
-     * @var ObjectType|InputObjectType|Type
+     * @var ObjectType|InputObjectType
      */
-    private Type $__type;
+    private NamedType $__type;
 
     /**
      * @var ValidationNode[]
@@ -41,10 +46,14 @@ class ValidationNode
     /**
      * Arguments of the resolver, where the current validation is being executed.
      */
-    private array $__resolverArgs;
+    private ?ResolverArgs $__resolverArgs;
 
-    public function __construct(Type $type, string $field = null, ?ValidationNode $parent = null, array $resolverArgs = [])
-    {
+    public function __construct(
+        ObjectType|InputObjectType $type,
+        ?string $field = null,
+        ?ValidationNode $parent = null,
+        ?ResolverArgs $resolverArgs = null
+    ) {
         $this->__type = $type;
         $this->__fieldName = $field;
         $this->__resolverArgs = $resolverArgs;
@@ -121,7 +130,7 @@ class ValidationNode
     public function getResolverArg(string $name)
     {
         if (in_array($name, self::KNOWN_VAR_NAMES)) {
-            return $this->__resolverArgs[$name];
+            return $this->__resolverArgs->$name;
         }
 
         return null;

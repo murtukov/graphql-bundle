@@ -8,6 +8,7 @@ use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\ScalarNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\Builder\VariableNodeDefinition;
+
 use function is_array;
 use function is_int;
 use function is_string;
@@ -80,6 +81,7 @@ abstract class TypeDefinition
                                 return $value;
                             }
                         }
+
                         // validation: [list of constraints]
                         return ['constraints' => $value];
                     }

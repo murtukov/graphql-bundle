@@ -10,9 +10,10 @@ use Overblog\GraphQLBundle\Request\Parser;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 use function in_array;
 
-class GraphController
+final class GraphController
 {
     private BatchParser $batchParser;
     private Executor $requestExecutor;
@@ -37,7 +38,7 @@ class GraphController
     /**
      * @return JsonResponse|Response
      */
-    public function endpointAction(Request $request, string $schemaName = null)
+    public function endpointAction(Request $request, ?string $schemaName = null)
     {
         return $this->createResponse($request, $schemaName, false);
     }
@@ -45,7 +46,7 @@ class GraphController
     /**
      * @return JsonResponse|Response
      */
-    public function batchEndpointAction(Request $request, string $schemaName = null)
+    public function batchEndpointAction(Request $request, ?string $schemaName = null)
     {
         return $this->createResponse($request, $schemaName, true);
     }
@@ -91,14 +92,14 @@ class GraphController
         return $payload;
     }
 
-    private function processBatchQuery(Request $request, string $schemaName = null): array
+    private function processBatchQuery(Request $request, ?string $schemaName = null): array
     {
         $queries = $this->batchParser->parse($request);
         $payloads = [];
 
         foreach ($queries as $query) {
             $payload = $this->requestExecutor
-                ->execute($schemaName, ['query' => $query['query'], 'variables' => $query['variables']])
+                ->execute($schemaName, $query)
                 ->toArray();
             if (!$this->useApolloBatchingMethod) {
                 $payload = ['id' => $query['id'], 'payload' => $payload];
@@ -109,7 +110,7 @@ class GraphController
         return $payloads;
     }
 
-    private function processNormalQuery(Request $request, string $schemaName = null): array
+    private function processNormalQuery(Request $request, ?string $schemaName = null): array
     {
         $params = $this->requestParser->parse($request);
 

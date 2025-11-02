@@ -6,9 +6,10 @@ namespace Overblog\GraphQLBundle\DependencyInjection\Compiler;
 
 use InvalidArgumentException;
 use Overblog\GraphQLBundle\Config\Parser\AnnotationParser;
+use Overblog\GraphQLBundle\Config\Parser\AttributeParser;
 use Overblog\GraphQLBundle\Config\Parser\GraphQLParser;
+use Overblog\GraphQLBundle\Config\Parser\ParserInterface;
 use Overblog\GraphQLBundle\Config\Parser\PreParserInterface;
-use Overblog\GraphQLBundle\Config\Parser\XmlParser;
 use Overblog\GraphQLBundle\Config\Parser\YamlParser;
 use Overblog\GraphQLBundle\DependencyInjection\TypesConfiguration;
 use Overblog\GraphQLBundle\OverblogGraphQLBundle;
@@ -21,33 +22,39 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
+
 use function array_count_values;
 use function array_filter;
 use function array_keys;
 use function array_map;
 use function array_merge;
 use function array_replace_recursive;
-use function call_user_func;
 use function dirname;
 use function implode;
 use function is_a;
 use function is_dir;
 use function sprintf;
 
-class ConfigParserPass implements CompilerPassInterface
+final class ConfigParserPass implements CompilerPassInterface
 {
+    /**
+     * @var array<string, string>
+     */
     public const SUPPORTED_TYPES_EXTENSIONS = [
         'yaml' => '{yaml,yml}',
-        'xml' => 'xml',
         'graphql' => '{graphql,graphqls}',
         'annotation' => 'php',
+        'attribute' => 'php',
     ];
 
+    /**
+     * @var array<string, class-string<ParserInterface>>
+     */
     public const PARSERS = [
         'yaml' => YamlParser::class,
-        'xml' => XmlParser::class,
         'graphql' => GraphQLParser::class,
         'annotation' => AnnotationParser::class,
+        'attribute' => AttributeParser::class,
     ];
 
     private static array $defaultDefaultConfig = [
@@ -84,6 +91,8 @@ class ConfigParserPass implements CompilerPassInterface
         $config = $container->getParameterBag()->resolveValue($container->getParameter('overblog_graphql.config'));
         $container->getParameterBag()->remove('overblog_graphql.config');
         $container->setParameter($this->getAlias().'.classes_map', []);
+        $container->setParameter($this->getAlias().'.interfaces_map', []);
+
         $typesMappings = $this->mappingConfig($config, $container);
         // reset treated files
         $this->treatedFiles = [];
@@ -92,7 +101,8 @@ class ConfigParserPass implements CompilerPassInterface
 
         // treats mappings
         // Pre-parse all files
-        AnnotationParser::reset();
+        AnnotationParser::reset($config);
+        AttributeParser::reset($config);
         $typesNeedPreParsing = $this->typesNeedPreParsing();
         foreach ($typesMappings as $params) {
             if ($typesNeedPreParsing[$params['type']]) {
@@ -108,6 +118,9 @@ class ConfigParserPass implements CompilerPassInterface
         $this->checkTypesDuplication($typeConfigs);
         // flatten config is a requirement to support inheritance
         $flattenTypeConfig = array_merge(...$typeConfigs);
+
+        AnnotationParser::finalize($container);
+        AttributeParser::finalize($container);
 
         return $flattenTypeConfig;
     }
@@ -142,7 +155,7 @@ class ConfigParserPass implements CompilerPassInterface
                 continue;
             }
 
-            $config[] = call_user_func([self::PARSERS[$type], $method], $file, $container, $configs);
+            $config[] = [self::PARSERS[$type], $method]($file, $container, $configs);
             $treatedFiles[$file->getRealPath()] = true;
         }
 
@@ -152,9 +165,7 @@ class ConfigParserPass implements CompilerPassInterface
     private function checkTypesDuplication(array $typeConfigs): void
     {
         $types = array_merge(...array_map('array_keys', $typeConfigs));
-        $duplications = array_keys(array_filter(array_count_values($types), function ($count) {
-            return $count > 1;
-        }));
+        $duplications = array_keys(array_filter(array_count_values($types), fn ($count) => $count > 1));
         if (!empty($duplications)) {
             throw new ForbiddenOverwriteException(sprintf(
                 'Types (%s) cannot be overwritten. See inheritance doc section for more details.',
@@ -173,6 +184,7 @@ class ConfigParserPass implements CompilerPassInterface
 
         // app only config files (yml or xml or graphql)
         if ($mappingConfig['auto_discover']['root_dir'] && $container->hasParameter('kernel.root_dir')) {
+            // @phpstan-ignore-next-line
             $typesMappings[] = ['dir' => $container->getParameter('kernel.root_dir').'/config/graphql', 'types' => null];
         }
         if ($mappingConfig['auto_discover']['bundles']) {
@@ -208,10 +220,12 @@ class ConfigParserPass implements CompilerPassInterface
     private function mappingFromBundles(ContainerBuilder $container): array
     {
         $typesMappings = [];
+
+        /** @var array<string, class-string> $bundles */
         $bundles = $container->getParameter('kernel.bundles');
 
         // auto detect from bundle
-        foreach ($bundles as $name => $class) {
+        foreach ($bundles as $class) {
             // skip this bundle
             if (OverblogGraphQLBundle::class === $class) {
                 continue;
@@ -219,14 +233,14 @@ class ConfigParserPass implements CompilerPassInterface
 
             $bundleDir = $this->bundleDir($class);
 
-            // only config files (yml or xml)
+            // only config files (yml)
             $typesMappings[] = ['dir' => $bundleDir.'/Resources/config/graphql', 'types' => null];
         }
 
         return $typesMappings;
     }
 
-    private function detectFilesByTypes(ContainerBuilder $container, string $path, string $suffix, array $types = null): array
+    private function detectFilesByTypes(ContainerBuilder $container, string $path, string $suffix, ?array $types = null): array
     {
         // add the closest existing directory as a resource
         $resource = $path;

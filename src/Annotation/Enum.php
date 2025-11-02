@@ -4,23 +4,29 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Annotation;
 
+use Attribute;
+use Doctrine\Common\Annotations\Annotation\NamedArgumentConstructor;
+
 /**
  * Annotation for GraphQL enum.
  *
  * @Annotation
+ * @NamedArgumentConstructor
  * @Target("CLASS")
  */
-final class Enum implements Annotation
+#[Attribute(Attribute::TARGET_CLASS)]
+final class Enum extends Annotation
 {
     /**
      * Enum name.
-     *
-     * @var string
      */
-    public string $name;
+    public ?string $name;
 
     /**
-     * @var array<\Overblog\GraphQLBundle\Annotation\EnumValue>
+     * @param string|null      $name   The GraphQL name of the enum
      */
-    public array $values;
+    public function __construct(?string $name = null)
+    {
+        $this->name = $name;
+    }
 }

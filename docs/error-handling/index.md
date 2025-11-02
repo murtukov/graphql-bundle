@@ -49,7 +49,7 @@ class CharacterResolver
         $droids = StarWarsData::droids();
 
         if (!isset($droids[$args['droid_id']])) {
-            $errors[] = sprintf('Could not find Droid#%d', $args['droid_id']);
+            $errors[] = new UserError(sprintf('Could not find Droid#%d', $args['droid_id']));
         }
 
         if (!empty($errors)) {
@@ -87,7 +87,7 @@ class CharacterResolver
 }
 ```
 
-Warnings can be found in the response under `extensions.warnings` map.
+Warnings can be found in the response under `exceptions.warnings` map.
 
 If you want to map your own exceptions to warnings and errors you can
 define a custom exception mapping:
@@ -140,7 +140,7 @@ You can custom the default errors handler using configuration:
 overblog_graphql:
     errors_handler:
         enabled: true # false will totally disabled errors handling
-        internal_error_message: ~ # custom generic error message
+        internal_error_message: 'Internal error occurred' # custom generic error message
         rethrow_internal_exceptions: false # re-throw internal exception
         debug: false # will add trace stack and debugMessage to error
         log: true # false will disabled the default logging behavior
@@ -159,7 +159,7 @@ Custom error handling / formatting
 -----------------------------------
 
 This can also be done by using events.
-* First totally disabled default errors handler:
+* First totally disable default errors handler:
     ```yaml
     overblog_graphql:
         errors_handler: false

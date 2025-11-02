@@ -4,27 +4,36 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Annotation;
 
+use Attribute;
+use Doctrine\Common\Annotations\Annotation\NamedArgumentConstructor;
+
 /**
  * Annotation for GraphQL interface.
  *
  * @Annotation
+ * @NamedArgumentConstructor
  * @Target("CLASS")
  */
-final class TypeInterface implements Annotation
+#[Attribute(Attribute::TARGET_CLASS)]
+final class TypeInterface extends Annotation
 {
     /**
-     * Interface name.
-     *
-     * @var string
+     * Resolver type for interface.
      */
-    public string $name;
+    public ?string $resolveType;
 
     /**
-     * Resolver type for interface.
-     *
-     * @Required
-     *
-     * @var string
+     * Interface name.
      */
-    public string $resolveType;
+    public ?string $name;
+
+    /**
+     * @param string|null   $resolveType The express resolve type
+     * @param string|null   $name        The GraphQL name of the interface
+     */
+    public function __construct(?string $resolveType = null, ?string $name = null)
+    {
+        $this->resolveType = $resolveType;
+        $this->name = $name;
+    }
 }

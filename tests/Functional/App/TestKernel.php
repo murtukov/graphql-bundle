@@ -6,11 +6,13 @@ namespace Overblog\GraphQLBundle\Tests\Functional\App;
 
 use Overblog\GraphQLBundle\OverblogGraphQLBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
+use Symfony\Bundle\MonologBundle\MonologBundle;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
+
 use function sprintf;
 use function sys_get_temp_dir;
 
@@ -21,14 +23,15 @@ final class TestKernel extends Kernel implements CompilerPassInterface
     /**
      * {@inheritdoc}
      */
-    public function registerBundles()
+    public function registerBundles(): iterable
     {
         yield new FrameworkBundle();
         yield new SecurityBundle();
+        yield new MonologBundle();
         yield new OverblogGraphQLBundle();
     }
 
-    public function __construct(string $environment, bool $debug, string $testCase = null)
+    public function __construct(string $environment, bool $debug, ?string $testCase = null)
     {
         $this->testCase = $testCase;
         parent::__construct($environment, $debug);
@@ -68,6 +71,16 @@ final class TestKernel extends Kernel implements CompilerPassInterface
             $loader->load(sprintf(__DIR__.'/config/%s/config.yml', $this->testCase));
         } else {
             $loader->load(__DIR__.'/config/config.yml');
+        }
+
+        // @phpstan-ignore-next-line
+        if (Kernel::VERSION_ID < 60200) {
+            $loader->load(__DIR__.'/config/config_pre_62.yml');
+        }
+
+        // @phpstan-ignore-next-line
+        if (Kernel::VERSION_ID >= 70000) {
+            $loader->load(__DIR__.'/config/config_post_70.yml');
         }
 
         $loader->load(function (ContainerBuilder $container): void {

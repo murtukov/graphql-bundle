@@ -9,6 +9,7 @@ use Overblog\GraphQLBundle\Annotation as GQL;
 /**
  * @GQL\Type
  */
-class RootMutation
+#[GQL\Type]
+final class RootMutation
 {
 }

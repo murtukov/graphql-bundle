@@ -4,53 +4,64 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Annotation;
 
+use Attribute;
+use Doctrine\Common\Annotations\Annotation\NamedArgumentConstructor;
+
 /**
  * Annotation for GraphQL type.
  *
  * @Annotation
+ * @NamedArgumentConstructor
  * @Target("CLASS")
  */
-class Type implements Annotation
+#[Attribute(Attribute::TARGET_CLASS)]
+class Type extends Annotation
 {
     /**
      * Type name.
-     *
-     * @var string
      */
-    public string $name;
+    public ?string $name;
 
     /**
      * Type inherited interfaces.
      *
      * @var string[]
      */
-    public array $interfaces;
+    public array $interfaces = [];
 
     /**
      * Is the type a relay payload.
-     *
-     * @var bool
      */
     public bool $isRelay = false;
 
     /**
      * Expression to a target fields resolver.
-     *
-     * @var string
      */
-    public string $resolveField;
-
-    /**
-     * List of fields builder.
-     *
-     * @var array<\Overblog\GraphQLBundle\Annotation\FieldsBuilder>
-     */
-    public array $builders = [];
+    public ?string $resolveField;
 
     /**
      * Expression to resolve type for interfaces.
-     *
-     * @var string
      */
-    public string $isTypeOf;
+    public ?string $isTypeOf;
+
+    /**
+     * @param string|null          $name         The GraphQL name of the type
+     * @param string[]             $interfaces   List of GraphQL interfaces implemented by the type
+     * @param bool                 $isRelay      Set to true to make the type compatible with relay
+     * @param string|null          $resolveField An expression to resolve the field value
+     * @param string|null          $isTypeOf     An expression to resolve if the field is of given type
+     */
+    public function __construct(
+        ?string $name = null,
+        array $interfaces = [],
+        bool $isRelay = false,
+        ?string $resolveField = null,
+        ?string $isTypeOf = null
+    ) {
+        $this->name = $name;
+        $this->interfaces = $interfaces;
+        $this->isRelay = $isRelay;
+        $this->resolveField = $resolveField;
+        $this->isTypeOf = $isTypeOf;
+    }
 }

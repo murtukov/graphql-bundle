@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Tests\Functional\Validator;
 
+use Doctrine\Common\Annotations\Reader;
 use Overblog\GraphQLBundle\Tests\Functional\TestCase;
 use Symfony\Component\Validator\Validation;
+
 use function class_exists;
 use function json_decode;
 
-class InputValidatorTest extends TestCase
+final class InputValidatorTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
         if (!class_exists(Validation::class)) {
             $this->markTestSkipped('Symfony validator component is not installed');
+        }
+        if (!interface_exists(Reader::class)) {
+            $this->markTestSkipped('Symfony validator component requires doctrine/annotations but it is not installed');
         }
         static::bootKernel(['test_case' => 'validator']);
     }
@@ -80,6 +85,22 @@ class InputValidatorTest extends TestCase
 
         $this->assertTrue(empty($result['errors']));
         $this->assertTrue($result['data']['linkedConstraintsValidation']);
+    }
+
+    public function testOnlyPassedFieldsValidated(): void
+    {
+        $query = '
+            mutation {
+                onlyPassedFieldsValidation(
+                    person: { firstName: "Joe" }
+                )
+            }
+        ';
+
+        $result = $this->executeGraphQLRequest($query);
+
+        $this->assertTrue(empty($result['errors']));
+        $this->assertTrue($result['data']['onlyPassedFieldsValidation']);
     }
 
     public function testLinkedConstraintsValidationFails(): void

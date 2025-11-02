@@ -11,7 +11,7 @@ use Overblog\GraphQLBundle\Tests\Functional\TestCase;
  *
  * @see https://github.com/graphql/graphql-relay-js/blob/master/src/node/__tests__/plural.js
  */
-class PluralTest extends TestCase
+final class PluralTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -23,13 +23,13 @@ class PluralTest extends TestCase
     public function testNodeInterfaceAndFields(): void
     {
         $query = <<<'EOF'
-{
-      usernames(usernames:["dschafer", "leebyron", "schrockn"]) {
-        username
-        url
-      }
-    }
-EOF;
+            {
+                  usernames(usernames:["dschafer", "leebyron", "schrockn"]) {
+                    username
+                    url
+                  }
+                }
+            EOF;
 
         $expectedData = [
             'usernames' => [
@@ -54,39 +54,39 @@ EOF;
     public function testCorrectlyIntrospects(): void
     {
         $query = <<<'EOF'
-{
-      __schema {
-        queryType {
-          fields {
-            name
-            args {
-              name
-              type {
-                kind
-                ofType {
-                  kind
-                  ofType {
-                    kind
-                    ofType {
-                      name
-                      kind
+            {
+                  __schema {
+                    queryType {
+                      fields {
+                        name
+                        args {
+                          name
+                          type {
+                            kind
+                            ofType {
+                              kind
+                              ofType {
+                                kind
+                                ofType {
+                                  name
+                                  kind
+                                }
+                              }
+                            }
+                          }
+                        }
+                        type {
+                          kind
+                          ofType {
+                            name
+                            kind
+                          }
+                        }
+                      }
                     }
                   }
                 }
-              }
-            }
-            type {
-              kind
-              ofType {
-                name
-                kind
-              }
-            }
-          }
-        }
-      }
-    }
-EOF;
+            EOF;
 
         $expectedData = [
             '__schema' => [

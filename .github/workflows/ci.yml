@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  pull_request: null
+  push:
+    branches:
+      - "*.*"
+      - "master"
+  schedule:
+    - cron: "0 4 * * *"
+
+jobs:
+  tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - '8.0'
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
+        symfony-version:
+          - '5.4.*'
+          - '6.0.*'
+          - '6.2.*'
+          - '6.4.*'
+          - '7.0.*'
+          - '7.1.*'
+        dependencies:
+          - 'lowest'
+          - 'highest'
+        remove-dependencies: [ '' ]
+        coverage: [ 'none' ]
+        exclude:
+          - php-version: '8.0'
+            symfony-version: '6.2.*'
+          - php-version: '8.0'
+            symfony-version: '6.4.*'
+          - php-version: '8.0'
+            symfony-version: '7.0.*'
+          - php-version: '8.0'
+            symfony-version: '7.1.*'
+          - php-version: '8.1'
+            symfony-version: '7.0.*'
+          - php-version: '8.1'
+            symfony-version: '7.1.*'
+          - php-version: '8.4'
+            dependencies: 'lowest'
+        include:
+          - php-version: '8.0'
+            symfony-version: '5.4.*'
+            dependencies: 'lowest'
+            remove-dependencies: '--dev symfony/validator doctrine/orm doctrine/annotations'
+          - php-version: '8.1'
+            symfony-version: '5.4.*'
+            dependencies: 'lowest'
+            coverage: 'pcov'
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          tools: flex
+          php-version: "${{ matrix.php-version }}"
+          coverage: "${{ matrix.coverage }}"
+
+      - name: "Webonyx GraphQL version"
+        if: "matrix.graphql-version != ''"
+        run: composer require "webonyx/graphql-php:${{ matrix.graphql-version }}" --dev --no-update
+
+      - name: Remove dependencies
+        if: "matrix.remove-dependencies != ''"
+        run: composer remove --no-update ${{ matrix.remove-dependencies }}
+
+      - name: "Install dependencies"
+        uses: "ramsey/composer-install@v2"
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+        env:
+          SYMFONY_REQUIRE: "${{ matrix.symfony-version }}"
+
+      - name: "Run tests"
+        run: composer run test
+
+      - name: "Upload coverage results to Coveralls"
+        if: "matrix.coverage == 'pcov'"
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          wget https://github.com/php-coveralls/php-coveralls/releases/download/v2.6.0/php-coveralls.phar
+          php php-coveralls.phar --coverage_clover=build/logs/clover.xml -v
+
+  coding-standard:
+    runs-on: ubuntu-22.04
+    name: Coding Standard
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          tools: flex
+          php-version: "8.2"
+          coverage: "none"
+
+      - name: "Install dependencies"
+        uses: "ramsey/composer-install@v2"
+
+      - name: "Check coding standard"
+        run: composer run check-cs
+
+  static-analysis:
+    runs-on: ubuntu-22.04
+    name: "Static analysis"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          php-version: "8.1"
+          coverage: "none"
+
+      - name: "Install dependencies"
+        uses: "ramsey/composer-install@v2"
+
+      - name: "Run static-analysis"
+        run: composer run static-analysis

@@ -9,10 +9,12 @@ use Overblog\GraphQLBundle\Annotation as GQL;
 /**
  * @GQL\Type
  */
-class InvalidAccess
+#[GQL\Type]
+final class InvalidAccess
 {
     /**
      * @GQL\Access("access")
      */
-    protected string $field;
+    #[GQL\Access('access')]
+    public string $field;
 }

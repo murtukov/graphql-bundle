@@ -4,21 +4,19 @@ declare(strict_types=1);
 
 namespace Overblog\GraphQLBundle\Definition;
 
+use function array_key_exists;
 use function count;
-use function sprintf;
-use function trigger_error;
-use const E_USER_DEPRECATED;
 
-class Argument implements ArgumentInterface
+final class Argument implements ArgumentInterface
 {
     private array $rawArguments = [];
 
-    public function __construct(array $rawArguments = null)
+    public function __construct(?array $rawArguments = null)
     {
         $this->exchangeArray($rawArguments);
     }
 
-    public function exchangeArray(array $array = null): array
+    public function exchangeArray(?array $array = null): array
     {
         $old = $this->rawArguments;
         $this->rawArguments = $array ?? [];
@@ -32,28 +30,11 @@ class Argument implements ArgumentInterface
     }
 
     /**
-     * @deprecated This method is deprecated since 0.12 and will be removed in 0.13. You should use getArrayCopy method instead.
-     */
-    public function getRawArguments(): array
-    {
-        @trigger_error(
-            sprintf(
-                'This "%s" method is deprecated since 0.12 and will be removed in 0.13. You should use "%s::getArrayCopy" instead.',
-                __METHOD__,
-                __CLASS__
-            ),
-            E_USER_DEPRECATED
-        );
-
-        return $this->getArrayCopy();
-    }
-
-    /**
      * @param int|string $offset
      */
     public function offsetExists($offset): bool
     {
-        return isset($this->rawArguments[$offset]);
+        return array_key_exists($offset, $this->rawArguments);
     }
 
     /**
@@ -61,7 +42,7 @@ class Argument implements ArgumentInterface
      *
      * @return mixed|null
      */
-    public function offsetGet($offset)
+    public function offsetGet($offset): mixed
     {
         return $this->offsetExists($offset) ? $this->rawArguments[$offset] : null;
     }

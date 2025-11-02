@@ -6,7 +6,7 @@ namespace Overblog\GraphQLBundle\Relay\Connection\Output;
 
 use Overblog\GraphQLBundle\Relay\Connection\PageInfoInterface;
 
-class PageInfo implements PageInfoInterface
+final class PageInfo implements PageInfoInterface
 {
     use DeprecatedPropertyPublicAccessTrait;
 
@@ -15,7 +15,7 @@ class PageInfo implements PageInfoInterface
     protected ?bool $hasPreviousPage;
     protected ?bool $hasNextPage;
 
-    public function __construct(string $startCursor = null, string $endCursor = null, bool $hasPreviousPage = null, bool $hasNextPage = null)
+    public function __construct(?string $startCursor = null, ?string $endCursor = null, ?bool $hasPreviousPage = null, ?bool $hasNextPage = null)
     {
         $this->startCursor = $startCursor;
         $this->endCursor = $endCursor;
@@ -23,9 +23,6 @@ class PageInfo implements PageInfoInterface
         $this->hasNextPage = $hasNextPage;
     }
 
-    /**
-     * @return string
-     */
     public function getStartCursor(): ?string
     {
         return $this->startCursor;
@@ -36,9 +33,6 @@ class PageInfo implements PageInfoInterface
         $this->startCursor = $startCursor;
     }
 
-    /**
-     * @return string
-     */
     public function getEndCursor(): ?string
     {
         return $this->endCursor;
@@ -49,9 +43,6 @@ class PageInfo implements PageInfoInterface
         $this->endCursor = $endCursor;
     }
 
-    /**
-     * @return bool
-     */
     public function getHasPreviousPage(): ?bool
     {
         return $this->hasPreviousPage;
@@ -62,9 +53,6 @@ class PageInfo implements PageInfoInterface
         $this->hasPreviousPage = $hasPreviousPage;
     }
 
-    /**
-     * @return bool
-     */
     public function getHasNextPage(): ?bool
     {
         return $this->hasNextPage;

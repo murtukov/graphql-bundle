@@ -10,6 +10,7 @@ use Overblog\GraphQLBundle\Relay\Connection\Output\Connection;
 /**
  * @GQL\Relay\Connection(node="Character")
  */
-class EnemiesConnection extends Connection
+#[GQL\Relay\Connection(node: 'Character')]
+final class EnemiesConnection extends Connection
 {
 }

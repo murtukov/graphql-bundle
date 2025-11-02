@@ -6,9 +6,10 @@ namespace Overblog\GraphQLBundle\Config;
 
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
+
 use function array_key_exists;
 
-class ObjectTypeDefinition extends TypeWithOutputFieldsDefinition
+final class ObjectTypeDefinition extends TypeWithOutputFieldsDefinition
 {
     public function getDefinition(): ArrayNodeDefinition
     {
@@ -50,9 +51,7 @@ class ObjectTypeDefinition extends TypeWithOutputFieldsDefinition
     private function treatFieldsDefaultAccess(ArrayNodeDefinition $node): void
     {
         $node->validate()
-            ->ifTrue(function ($v) {
-                return array_key_exists('fieldsDefaultAccess', $v) && null !== $v['fieldsDefaultAccess'];
-            })
+            ->ifTrue(fn ($v) => array_key_exists('fieldsDefaultAccess', $v) && null !== $v['fieldsDefaultAccess'])
             ->then(function ($v) {
                 foreach ($v['fields'] as &$field) {
                     if (array_key_exists('access', $field) && null !== $field['access']) {

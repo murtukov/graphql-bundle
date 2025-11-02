@@ -6,7 +6,7 @@ namespace Overblog\GraphQLBundle\Tests\Functional\App\Resolver;
 
 use function array_filter;
 
-class Characters
+final class Characters
 {
     public const TYPE_HUMAN = 'human';
     public const TYPE_DIREWOLF = 'direwolf';
@@ -123,8 +123,6 @@ class Characters
 
     private static function findByType(string $type): array
     {
-        return array_filter(self::$characters, function ($character) use ($type) {
-            return $type === $character['type'];
-        });
+        return array_filter(self::$characters, fn ($character) => $type === $character['type']);
     }
 }
